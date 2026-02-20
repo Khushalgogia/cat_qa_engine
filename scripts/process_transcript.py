@@ -1,14 +1,13 @@
 import os
 import json
 import sys
-import google.generativeai as genai
+from google import genai
 from supabase import create_client
 from dotenv import load_dotenv
 
 load_dotenv()
 
-genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-model = genai.GenerativeModel("gemini-1.5-flash")
+client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
 supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 
 ERROR_CATEGORIES = [
@@ -77,14 +76,25 @@ Problem: {problem}
 Correct steps: {steps}
 """
 
-def call_llm(prompt):
-    response = model.generate_content(prompt)
-    text = response.text.strip()
-    # Strip markdown code blocks if present
-    if text.startswith("```"):
-        text = text.split("\n", 1)[1]
-        text = text.rsplit("```", 1)[0]
-    return text
+def call_llm(prompt, max_retries=5):
+    import time
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(model="gemini-2.0-flash", contents=prompt)
+            text = response.text.strip()
+            # Strip markdown code blocks if present
+            if text.startswith("```"):
+                text = text.split("\n", 1)[1]
+                text = text.rsplit("```", 1)[0]
+            return text
+        except Exception as e:
+            if "429" in str(e) or "RESOURCE_EXHAUSTED" in str(e):
+                wait = 2 ** attempt * 10  # 10s, 20s, 40s, 80s, 160s
+                print(f"  ⏳ Rate limited. Waiting {wait}s before retry {attempt+1}/{max_retries}...")
+                time.sleep(wait)
+            else:
+                raise
+    raise Exception("Max retries exceeded for Gemini API")
 
 def process_transcript(filepath):
     transcript_name = os.path.basename(filepath)
