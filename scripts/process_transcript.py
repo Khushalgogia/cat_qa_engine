@@ -32,9 +32,10 @@ For each such problem, extract:
 a) The problem statement in clean mathematical language.
 b) The teacher's solution as numbered logical steps. Each step is one clear mathematical action.
 
-Rules:
+IMPORTANT RULES:
 - Do NOT solve anything yourself. Only extract what the teacher actually said and did.
 - If a problem's explanation is incomplete or unclear, skip it entirely.
+- MAXIMUM 10 steps per solution. If the teacher used more than 10 steps, merge trivially related consecutive steps so the total is at most 10.
 - Return a JSON array only. No text outside the JSON.
 - Each element: {{"problem_statement": "...", "solution_steps": ["step 1", "step 2", ...]}}
 
@@ -62,9 +63,10 @@ Rules:
 - Make the error subtle — the kind a student under time pressure would miss.
 - Steps after the corrupted step must follow logically from the corrupted step (as if the student continued with the wrong value).
 - Do not make it obviously wrong.
+- The corrupted solution must have AT MOST 10 steps total. If it exceeds 10, merge trivially related consecutive correct steps.
 
 Return a JSON object with these exact keys:
-- "corrupted_steps": full solution array with one step silently changed
+- "corrupted_steps": full solution array with one step silently changed (MAX 10 steps)
 - "flaw_step_number": the 1-based index of the corrupted step (integer)
 - "error_category": which category from the list you used
 - "explanation": one sentence explaining exactly what was corrupted and why it is wrong
@@ -134,6 +136,12 @@ def process_transcript(filepath):
         print(f"Category: {corruption['error_category']}")
         print(f"Explanation: {corruption['explanation']}")
         print(f"Trap Axiom: {corruption['trap_axiom']}")
+
+        # Validate step count — Telegram polls max 10 options
+        if len(corruption['corrupted_steps']) > 10:
+            print(f"  ⚠️ Still {len(corruption['corrupted_steps'])} steps after corruption. Telegram max is 10. Skipping.")
+            skipped += 1
+            continue
 
         confirm = input("\nPush to database? (y/n): ").strip().lower()
         if confirm != 'y':

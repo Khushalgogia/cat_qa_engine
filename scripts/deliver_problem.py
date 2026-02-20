@@ -40,6 +40,26 @@ async def deliver():
     problem = result.data[0]
     steps = problem["solution_steps"]
 
+    # Safety: Telegram polls max 10 options
+    if len(steps) > 10:
+        print(f"Problem {problem['id'][:8]}... has {len(steps)} steps (max 10). Skipping.")
+        supabase.table("qa_flaw_deck")\
+            .update({"status": "skip_overlimit"})\
+            .eq("id", problem["id"])\
+            .execute()
+        # Retry with next problem
+        result = supabase.table("qa_flaw_deck")\
+            .select("*")\
+            .eq("status", "unseen")\
+            .order("source_file")\
+            .limit(1)\
+            .execute()
+        if not result.data:
+            await bot.send_message(chat_id=chat_id, text="⚠️ No deliverable problems. Run process_transcript.py.")
+            return
+        problem = result.data[0]
+        steps = problem["solution_steps"]
+
     # Header: revision round or normal
     if is_revision:
         header = "📚 *REVISION ROUND*\n\nYou caught this before. Still remember why the flaw was where it was?\n\n"
