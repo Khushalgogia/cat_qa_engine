@@ -80,7 +80,7 @@ def call_llm(prompt, max_retries=5):
     import time
     for attempt in range(max_retries):
         try:
-            response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+            response = client.models.generate_content(model="gemini-3-flash-preview", contents=prompt)
             text = response.text.strip()
             # Strip markdown code blocks if present
             if text.startswith("```"):
