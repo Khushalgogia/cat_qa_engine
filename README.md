@@ -1,6 +1,6 @@
 # CAT QA Engine 🎯
 
-> A spaced-repetition flaw-detection system for CAT quantitative aptitude prep. Transcribes class recordings, extracts math problems, introduces subtle errors using Gemini AI, and delivers daily "Spot the Flaw" challenges via Telegram.
+> A two-system CAT prep engine: **Spot the Flaw** (corrupted solutions + spaced repetition) + **Math Sprint** (speed drills with debt queues). Fully automated via GitHub Actions + Supabase Edge Functions + Telegram.
 
 ---
 
@@ -25,8 +25,10 @@
 
 ## What This App Does
 
-You record your CAT class audio. This app:
+Two interconnected systems, one brain, zero overlap:
 
+### System 1: Spot the Flaw (Afternoon)
+You record your CAT class audio. This app:
 1. **Transcribes** it using OpenAI Whisper (locally on your Mac)
 2. **Extracts** every solved math problem from the transcript using Gemini AI
 3. **Corrupts** one step in each solution with a subtle, realistic error
@@ -35,9 +37,18 @@ You record your CAT class audio. This app:
 6. **Auto-detects** whether you caught the flaw or missed it (from your poll answer)
 7. **Sends** the underlying trap axiom at 10 PM as a bedtime thought
 8. **Resurfaces** missed problems on Mon/Wed/Fri mornings (graveyard nudge)
-9. **Sends** a weekly error fingerprint report every Sunday
 
-Everything after step 4 is **fully automated** via GitHub Actions.
+### System 2: Math Sprint (Morning)
+9. **Generates** 109 contextual math flashcards (reciprocals, squares, cubes, primes, tables)
+10. **Delivers** 5-question speed drills at 8:30 AM with inline keyboard buttons
+11. **Wrong answers add debt** — each miss adds that question back to the end of the queue
+12. **Real-time interaction** via Supabase Edge Function — messages edit in-place, no page refresh
+13. **Targets your weak spots** — sprint questions are calibrated by your flaw-detection errors
+
+### Weekly Report
+14. **Sends** a combined error fingerprint + sprint stats report every Sunday
+
+Everything is **fully automated** via GitHub Actions + Supabase Edge Functions.
 
 ---
 
@@ -53,22 +64,24 @@ Everything after step 4 is **fully automated** via GitHub Actions.
 │  transcripts/*.txt  ──→  process_transcript.py        │
 │                          (3 Gemini API calls)         │
 │                            │                          │
+│  generate_questions.py  ──┤  (one-time, 109 questions)│
 │                            ▼                          │
 │                      Supabase Database                │
 └──────────────────────────────────────────────────────┘
                              │
-                             ▼
-┌──────────────────────────────────────────────────────┐
-│              GITHUB ACTIONS (Automated)               │
-│                                                       │
-│  2:00 PM  → deliver_problem.py  → Telegram Quiz Poll  │
-│  2:40 PM  → handle_reply.py     → DB: caught/missed   │
-│ 10:00 PM  → deliver_axiom.py    → Telegram Axiom      │
-│  8:00 AM  → graveyard_check.py  → Telegram Nudge      │
-│  (M/W/F)                                              │
-│  8:30 PM  → weekly_report.py    → Telegram Report      │
-│  (Sunday)                                             │
-└──────────────────────────────────────────────────────┘
+          ┌──────────────────┼──────────────────┐
+          ▼                  ▼                  ▼
+┌──────────────────┐ ┌──────────────┐ ┌──────────────────┐
+│  GITHUB ACTIONS  │ │  SUPABASE    │ │  TELEGRAM        │
+│  (Scheduled)     │ │  EDGE FUNC   │ │  (Your Phone)    │
+│                  │ │              │ │                  │
+│  deliver_problem │ │  sprint-     │ │  Quiz polls      │
+│  handle_reply    │ │  webhook     │ │  Inline buttons  │
+│  deliver_axiom   │ │  (real-time  │ │  Sprint drills   │
+│  deliver_sprint  │ │   button     │ │  Axioms          │
+│  graveyard_check │ │   handler)   │ │  Reports         │
+│  weekly_report   │ │              │ │                  │
+└──────────────────┘ └──────────────┘ └──────────────────┘
 ```
 
 ---
@@ -93,10 +106,13 @@ Everything after step 4 is **fully automated** via GitHub Actions.
    - **Project URL** (looks like `https://xxxxxx.supabase.co`)
    - **Service Role Key** (under "service_role", starts with `eyJ...`)
 
-5. Go to **SQL Editor** and run this SQL to create the tables:
+5. Go to **SQL Editor** and run this SQL to create ALL tables:
 
 ```sql
--- Problem bank: stores extracted problems with intentional flaws
+-- ═══════════════════════════════════════
+-- SYSTEM 1: SPOT THE FLAW TABLES
+-- ═══════════════════════════════════════
+
 create table qa_flaw_deck (
   id uuid default gen_random_uuid() primary key,
   original_problem text,
@@ -110,7 +126,6 @@ create table qa_flaw_deck (
   source_file text
 );
 
--- Daily log: tracks which problems were delivered and if they were caught
 create table daily_log (
   id uuid default gen_random_uuid() primary key,
   problem_id uuid references qa_flaw_deck(id),
@@ -118,24 +133,63 @@ create table daily_log (
   caught boolean
 );
 
--- Settings: key-value store for current problem/axiom
 create table settings (
   key text primary key,
   value text
 );
 
--- Initialize settings rows
 insert into settings (key, value) values ('todays_problem_id', '');
 insert into settings (key, value) values ('todays_axiom', '');
+
+-- ═══════════════════════════════════════
+-- SYSTEM 2: MATH SPRINT TABLES
+-- ═══════════════════════════════════════
+
+create table math_sprints (
+  id uuid default gen_random_uuid() primary key,
+  category text,
+  difficulty_level int default 1,
+  question_text text,
+  options jsonb,
+  correct_answer_index int,
+  times_correct int default 0,
+  times_attempted int default 0,
+  created_at timestamp default now()
+);
+
+create table sprint_sessions (
+  id uuid default gen_random_uuid() primary key,
+  chat_id text,
+  message_id bigint,
+  question_queue jsonb,
+  current_index int default 0,
+  original_count int default 5,
+  debt_count int default 0,
+  completed boolean default false,
+  created_at timestamp default now()
+);
+
+create table sprint_logs (
+  id uuid default gen_random_uuid() primary key,
+  session_id uuid references sprint_sessions(id),
+  question_id uuid references math_sprints(id),
+  category text,
+  is_correct boolean,
+  is_debt_attempt boolean default false,
+  answered_at timestamp default now()
+);
 ```
 
 ### Database Schema Explained
 
-| Table | Purpose |
-|-------|---------|
-| `qa_flaw_deck` | Every problem with its corrupted solution, flaw location, explanation, and status (`unseen` → `delivered` → `caught`/`missed`) |
-| `daily_log` | One row per delivered problem, tracking if you caught it or not |
-| `settings` | Stores today's problem ID and axiom so the nightly script knows what to send |
+| Table | System | Purpose |
+|-------|--------|---------|
+| `qa_flaw_deck` | Flaw | Problems with corrupted solutions (`unseen` → `delivered` → `caught`/`missed`) |
+| `daily_log` | Flaw | One row per delivered problem, tracking if caught |
+| `settings` | Flaw | Key-value store for today's problem ID and axiom |
+| `math_sprints` | Sprint | 109 flashcard questions with options and correct answer index |
+| `sprint_sessions` | Sprint | Active sprint sessions with question queue and debt counter |
+| `sprint_logs` | Sprint | Per-answer log for analytics (correct/wrong, category, debt attempt) |
 
 ---
 
@@ -191,24 +245,32 @@ brew install ffmpeg
 
 ```
 cat_qa_engine/
-├── audio/                    ← Drop your class audio files here
-├── transcripts/              ← Transcripts auto-saved here
+├── audio/                          ← Drop class audio files here
+├── transcripts/                    ← Transcripts auto-saved here
 ├── scripts/
-│   ├── transcribe.py         ← Audio → text (Whisper, local only)
-│   ├── process_transcript.py ← Extract + corrupt problems (Gemini → Supabase)
-│   ├── deliver_problem.py    ← Send daily quiz poll (Telegram)
-│   ├── deliver_axiom.py      ← Send nightly axiom (Telegram)
-│   ├── handle_reply.py       ← Detect poll answer, update DB
-│   ├── graveyard_check.py    ← Resurface missed problems
-│   └── weekly_report.py      ← Weekly error fingerprint
+│   ├── transcribe.py               ← Audio → text (Whisper, local)
+│   ├── process_transcript.py       ← Extract + corrupt problems (Gemini → Supabase)
+│   ├── generate_questions.py       ← One-time: populate 109 sprint questions
+│   ├── deliver_problem.py          ← Daily quiz poll (Telegram)
+│   ├── deliver_axiom.py            ← Nightly axiom (Telegram)
+│   ├── deliver_sprint.py           ← Morning sprint with inline keyboard
+│   ├── handle_reply.py             ← Detect poll answer, update DB
+│   ├── graveyard_check.py          ← Resurface missed problems
+│   ├── weekly_report.py            ← Combined flaw + sprint report
+│   └── register_webhook.py         ← One-time: register Telegram webhook
+├── supabase/
+│   └── functions/
+│       └── sprint-webhook/
+│           └── index.ts            ← Edge Function: handles inline button taps
 ├── .github/
 │   └── workflows/
 │       ├── daily_problem.yml
 │       ├── handle_reply.yml
 │       ├── nightly_axiom.yml
 │       ├── graveyard_nudge.yml
-│       └── weekly_report.yml
-├── .env                      ← Your credentials (DO NOT commit)
+│       ├── weekly_report.yml
+│       └── math_sprint.yml         ← Morning sprint delivery
+├── .env                            ← Your credentials (DO NOT commit)
 ├── .gitignore
 ├── requirements.txt
 └── README.md
@@ -394,15 +456,78 @@ Also accepts text replies: "caught", "missed", "got it", "nope" (text overrides 
 
 ---
 
-### 7. `scripts/weekly_report.py` — Error Fingerprint (GitHub Actions)
+### 7. `scripts/weekly_report.py` — Combined Report (GitHub Actions)
 
 **What it does**:
-1. Queries all `daily_log` entries with resolved `caught` values
-2. Aggregates by error category
-3. Sends a summary: total attempted, caught count, missed count
-4. Shows your blind spots (most-missed categories) and strengths
+1. Queries all `daily_log` entries — aggregates by error category
+2. Shows blind spots (most-missed) and strengths (most-caught)
+3. **Sprint stats**: total answers, correct count, debt repaid, slowest category
 
 **Full code**: See [scripts/weekly_report.py](scripts/weekly_report.py)
+
+---
+
+### 8. `scripts/generate_questions.py` — Question Bank (One-Time, Local)
+
+**What it does**:
+1. Generates 109 raw math questions across 5 categories programmatically
+2. Wraps each question in a contextual business scenario using Gemini AI
+3. Inserts all questions into `math_sprints` table
+
+**Categories**: reciprocals (19), squares (30), cubes (15), primes (25), tables (20)
+
+**How to use** (run once):
+```bash
+source venv/bin/activate
+python scripts/generate_questions.py
+# Review sample output → type 'y' to insert
+```
+
+---
+
+### 9. `scripts/deliver_sprint.py` — Morning Sprint (GitHub Actions)
+
+**What it does**:
+1. Reads your missed flaw categories and maps them to sprint categories
+2. Selects 5 questions: 2 from weak spots + 3 random (least-attempted first)
+3. Creates a session in `sprint_sessions` with the question queue
+4. Sends the first question with 4 inline keyboard buttons
+5. Edge Function handles all subsequent button taps in real-time
+
+**Debt queue mechanics**: Wrong answers are appended to the end of the queue. You must answer them all correctly before the sprint ends. Each wrong answer costs you one extra question.
+
+---
+
+### 10. `supabase/functions/sprint-webhook/index.ts` — Edge Function
+
+**What it does** (runs on Supabase, always-on):
+1. Receives inline keyboard taps via Telegram webhook
+2. Checks if the selected option matches the correct answer
+3. If wrong → appends question to debt queue, shows "❌ added to debt queue"
+4. If right → shows "✅ Correct!"
+5. **Edits the message in-place** with the next question (no new messages)
+6. When all questions (including debt) are done → shows sprint summary
+7. Logs every answer in `sprint_logs` for analytics
+
+**Deployment** (one-time):
+```bash
+brew install supabase/tap/supabase
+supabase login
+supabase link --project-ref YOUR_PROJECT_REF
+supabase secrets set TELEGRAM_TOKEN=your_token
+supabase functions deploy sprint-webhook --no-verify-jwt
+```
+
+---
+
+### 11. `scripts/register_webhook.py` — Webhook Registration (One-Time)
+
+**What it does**: Tells Telegram to send only `callback_query` events (inline button taps) to the Edge Function. Text messages still flow through `getUpdates` for `handle_reply.py`.
+
+**Run once after deploying the Edge Function**:
+```bash
+python scripts/register_webhook.py
+```
 
 ---
 
@@ -477,13 +602,16 @@ Return only valid JSON. No text outside the JSON.
 
 ## Daily Workflow
 
-### Your Manual Work (3 minutes/day)
+### Your Complete Daily Routine (~5 min total)
 
-| Time | What Happens | Your Action |
-|------|-------------|-------------|
-| 2:00 PM | Quiz poll arrives on Telegram | Find the flaw, tap your answer |
-| — | Bot auto-detects your answer | Nothing — it's automatic |
-| 10:00 PM | Trap axiom arrives | Read it, sleep on it |
+| Time | What Arrives | Your Action | Duration |
+|------|-------------|-------------|----------|
+| 8:30 AM | ⚡ Math Sprint (5 questions, inline keyboard) | Tap through questions. Wrong answers queue up. | 2-3 min |
+| 2:00 PM | 🔍 Spot the Flaw quiz poll | Find the flaw, tap your answer | 1 min |
+| — | ✅/❌ Auto-detected result | Nothing — it's automatic | — |
+| 10:00 PM | 🌙 Trap axiom | Read 20 seconds, sleep on it | 20 sec |
+| Mon/Wed/Fri 8 AM | ⚰️ Graveyard nudge | Reply "got it" or "nope" | 30 sec |
+| Sunday 8:30 PM | 📊 Weekly fingerprint + sprint stats | Read your blind spots | 1 min |
 
 ### When You Get a New Class Recording (~15 minutes)
 
@@ -504,6 +632,7 @@ All times shown in IST (UTC+5:30).
 
 | Workflow | Cron (UTC) | IST Equivalent | Script |
 |----------|-----------|----------------|--------|
+| **Math Sprint** | `0 3 * * *` | 8:30 AM daily | `deliver_sprint.py` |
 | Daily Problem | `30 8 * * *` | 2:00 PM daily | `deliver_problem.py` |
 | Handle Reply | `10 9 * * *` | 2:40 PM daily | `handle_reply.py` |
 | Nightly Axiom | `30 16 * * *` | 10:00 PM daily | `deliver_axiom.py` |
@@ -572,6 +701,16 @@ for m in client.models.list():
 - Verify `TELEGRAM_CHAT_ID` is your personal chat ID (get it from @userinfobot)
 - Make sure you've started the bot by sending `/start` to it on Telegram
 
+### Sprint buttons not working
+- Verify the Edge Function is deployed: `supabase functions list`
+- Check Edge Function logs: Supabase Dashboard → Edge Functions → sprint-webhook → Logs
+- Verify webhook is registered: `python scripts/register_webhook.py`
+- If webhook broke `handle_reply.py`: the webhook only captures `callback_query`, not text messages
+
+### Edge Function errors
+- Check that `TELEGRAM_TOKEN` secret is set: `supabase secrets list`
+- `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are auto-provided by Supabase runtime
+
 ---
 
 ## Dependencies
@@ -585,3 +724,13 @@ for m in client.models.list():
 | `python-dotenv` | latest | Load .env files |
 | `httpx` | 0.25.2 | HTTP client (pinned for compatibility) |
 | `openai-whisper` | latest | Audio transcription (local only) |
+
+### Infrastructure
+
+| Component | Purpose |
+|-----------|---------|
+| Supabase (PostgreSQL) | Database for all tables |
+| Supabase Edge Functions (Deno) | Real-time sprint webhook handler |
+| GitHub Actions | Scheduled daily/weekly script execution |
+| Telegram Bot API | Message delivery + inline keyboards |
+| Gemini 3 Flash Preview | Problem extraction, corruption, question framing |

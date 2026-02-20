@@ -13,6 +13,12 @@ supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
 bot = Bot(token=os.environ["TELEGRAM_TOKEN"])
 chat_id = os.environ["TELEGRAM_CHAT_ID"]
 
+def escape_md(text):
+    """Escape Markdown special characters for Telegram."""
+    for ch in ['_', '*', '[', ']', '(', ')', '~', '`', '>', '#', '+', '-', '=', '|', '{', '}', '.', '!']:
+        text = text.replace(ch, f'\\{ch}')
+    return text
+
 def get_weak_categories():
     """Read Spot the Flaw errors and find weakest category."""
     logs = supabase.table("daily_log")\
@@ -122,14 +128,24 @@ async def deliver():
     if weak_cats:
         weak_note = f"_Targeting your weak spots: {', '.join(weak_cats)}_\n\n"
     
-    text = f"⚡ *MATH SPRINT* [1/{len(questions)}]\n\n{weak_note}{first_q['question_text']}"
+    q_text = escape_md(first_q['question_text'])
+    text = f"⚡ *MATH SPRINT* \\[1/{len(questions)}\\]\n\n{weak_note}{q_text}"
     
-    message = await bot.send_message(
-        chat_id=chat_id,
-        text=text,
-        reply_markup=keyboard,
-        parse_mode="Markdown"
-    )
+    try:
+        message = await bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            reply_markup=keyboard,
+            parse_mode="MarkdownV2"
+        )
+    except Exception as e:
+        # Fallback: send without Markdown if escaping fails
+        text_plain = f"⚡ MATH SPRINT [1/{len(questions)}]\n\n{first_q['question_text']}"
+        message = await bot.send_message(
+            chat_id=chat_id,
+            text=text_plain,
+            reply_markup=keyboard
+        )
     
     # Update session with real message_id so edge function can edit it
     supabase.table("sprint_sessions")\
