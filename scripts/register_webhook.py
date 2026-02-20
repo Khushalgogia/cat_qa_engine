@@ -14,7 +14,7 @@ load_dotenv()
 
 EDGE_FUNCTION_URL = os.environ.get(
     "SPRINT_WEBHOOK_URL",
-    "https://your-project-ref.supabase.co/functions/v1/sprint-webhook"
+    "https://ucbudwmxzdyzqxjwpyti.supabase.co/functions/v1/sprint-webhook"
 )
 
 async def register():

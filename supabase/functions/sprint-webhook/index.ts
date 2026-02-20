@@ -2,7 +2,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const supabase = createClient(
   Deno.env.get('SUPABASE_URL')!,
-  Deno.env.get('SUPABASE_KEY')!
+  Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 )
 const TELEGRAM_TOKEN = Deno.env.get('TELEGRAM_TOKEN')!
 const BASE_URL = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`
