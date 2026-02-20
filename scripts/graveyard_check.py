@@ -19,11 +19,7 @@ async def graveyard_nudge():
         .execute()
 
     if not result.data:
-        await bot.send_message(
-            chat_id=chat_id,
-            text="🪦 Graveyard is empty. You've caught everything so far."
-        )
-        return
+        return  # Silent — no nudge if graveyard is empty
 
     problem = result.data[0]
 
@@ -37,10 +33,12 @@ async def graveyard_nudge():
 
     await bot.send_message(chat_id=chat_id, text=message, parse_mode="Markdown")
 
-    # Update settings so handle_reply knows what's pending
+    # Write to graveyard_pending_id so handle_reply.py knows
+    # which problem a "got it"/"nope" reply belongs to
     supabase.table("settings")\
-        .update({"value": problem["id"]})\
-        .eq("key", "todays_problem_id")\
+        .upsert({"key": "graveyard_pending_id", "value": problem["id"]})\
         .execute()
+
+    print(f"Graveyard nudge sent: {problem['id'][:8]}... ({problem['error_category']})")
 
 asyncio.run(graveyard_nudge())
