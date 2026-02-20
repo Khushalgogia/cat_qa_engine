@@ -1,4 +1,5 @@
 import os
+import time
 import asyncio
 from supabase import create_client
 from telegram import Bot
@@ -99,8 +100,9 @@ async def handle():
         return
 
     caught = None
+    eight_hours_ago = int(time.time()) - (8 * 3600)
 
-    # Check poll answer
+    # Check poll answer (only from last 8 hours to prevent stale cross-day answers)
     for update in reversed(updates):
         if update.poll_answer:
             chosen = update.poll_answer.option_ids

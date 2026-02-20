@@ -15,6 +15,7 @@ async def report():
     logs = supabase.table("daily_log")\
         .select("*, qa_flaw_deck(error_category)")\
         .not_.is_("caught", "null")\
+        .neq("is_revision", True)\
         .execute()
 
     if not logs.data:

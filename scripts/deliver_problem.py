@@ -15,6 +15,7 @@ async def deliver():
     result = supabase.table("qa_flaw_deck")\
         .select("*")\
         .eq("status", "unseen")\
+        .order("source_file")\
         .limit(1)\
         .execute()
 
@@ -80,7 +81,8 @@ async def deliver():
             .execute()
 
     supabase.table("daily_log").insert({
-        "problem_id": problem["id"]
+        "problem_id": problem["id"],
+        "is_revision": is_revision
     }).execute()
 
     print(f"{'Revision' if is_revision else 'New'} problem delivered: {problem['id'][:8]}...")

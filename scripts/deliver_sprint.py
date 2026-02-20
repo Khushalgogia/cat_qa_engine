@@ -22,7 +22,9 @@ CATEGORY_MAP = {
     "Ratio Misapplied": "reciprocal",
     "Calculation Shortcut Trap": "table",
     "Proportionality Assumed Equal": "reciprocal",
-    "Misread Constraint": "prime"
+    "Misread Constraint": "prime",
+    "At-Least vs Exactly Confusion": "prime",
+    "Division by Variable Without Checking Zero": "reciprocal"
 }
 
 def escape_md(text):
