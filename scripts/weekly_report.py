@@ -45,6 +45,30 @@ async def report():
         worst = missed_cats.most_common(1)[0][0]
         msg += f"\n🎯 *Fix this week:* {worst}"
 
+    # ── Sprint stats ──────────────────────────────────────
+    try:
+        sprint_logs = supabase.table("sprint_logs")\
+            .select("*")\
+            .execute()
+
+        if sprint_logs.data:
+            sprint_total = len(sprint_logs.data)
+            sprint_correct = sum(1 for l in sprint_logs.data if l["is_correct"])
+            sprint_debt = sum(1 for l in sprint_logs.data if l["is_debt_attempt"])
+
+            wrong_cats = Counter(
+                l["category"] for l in sprint_logs.data if not l["is_correct"]
+            )
+
+            msg += f"\n\n⚡ *SPRINT STATS (this week)*\n"
+            msg += f"Answers: {sprint_total} | Correct: {sprint_correct} | "
+            msg += f"Debt repaid: {sprint_debt}\n"
+
+            if wrong_cats:
+                msg += f"Slowest category: *{wrong_cats.most_common(1)[0][0]}*"
+    except Exception:
+        pass  # Sprint tables may not exist yet
+
     await bot.send_message(chat_id=chat_id, text=msg, parse_mode="Markdown")
 
 asyncio.run(report())
