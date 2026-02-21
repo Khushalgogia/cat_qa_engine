@@ -70,7 +70,10 @@ Return a JSON object with these exact keys:
 - "flaw_step_number": the 1-based index of the corrupted step (integer)
 - "error_category": which category from the list you used
 - "explanation": one sentence explaining exactly what was corrupted and why it is wrong
-- "trap_axiom": a single vivid sentence capturing the underlying rule being violated. No formulas. Pure logic. Slightly poetic but sharp. Like a rule you would tattoo on your wrist.
+- "trap_axiom": a JSON object (NOT a string) with exactly 3 keys:
+    - "core_rule": one crisp sentence stating the fundamental mathematical rule being violated. No formulas. Pure logic. Sharp and absolute.
+    - "mental_model": a vivid analogy or visual metaphor that makes the rule intuitive. Use everyday objects or scenarios. Make it so clear a 10-year-old would get it.
+    - "anchor_question": a reflective question the student should ask themselves BEFORE making this kind of mistake again. Phrased as "Before you..., ask yourself: ...?"
 
 Return only valid JSON. No text outside the JSON.
 
