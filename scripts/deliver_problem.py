@@ -47,7 +47,7 @@ Return only valid JSON."""
 
     for attempt in range(3):
         try:
-            response = client.models.generate_content(model="gemini-3.0-flash-preview", contents=prompt)
+            response = client.models.generate_content(model="gemini-3-flash-preview", contents=prompt)
             text = response.text.strip()
             if text.startswith("```"):
                 text = text.split("\n", 1)[1]
