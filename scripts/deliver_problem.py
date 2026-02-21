@@ -139,11 +139,32 @@ async def deliver():
     formatted_steps = "\n".join([f"Step {i+1}: {s}" for i, s in enumerate(steps)])
     full_message = f"{header}*Problem:*\n{problem['original_problem']}\n\n*Steps:*\n{formatted_steps}"
 
-    await bot.send_message(
-        chat_id=chat_id,
-        text=full_message,
-        parse_mode="Markdown"
-    )
+    # Telegram message limit is 4096 chars — split if needed
+    if len(full_message) <= 4096:
+        await bot.send_message(
+            chat_id=chat_id,
+            text=full_message,
+            parse_mode="Markdown"
+        )
+    else:
+        # Send problem first, then steps separately
+        problem_msg = f"{header}*Problem:*\n{problem['original_problem']}"
+        steps_msg = f"*Steps:*\n{formatted_steps}"
+
+        await bot.send_message(
+            chat_id=chat_id,
+            text=problem_msg,
+            parse_mode="Markdown"
+        )
+        # If steps alone are still too long, chunk them
+        while steps_msg:
+            chunk = steps_msg[:4096]
+            steps_msg = steps_msg[4096:]
+            await bot.send_message(
+                chat_id=chat_id,
+                text=chunk,
+                parse_mode="Markdown"
+            )
 
     # Build poll options with preview text, each guaranteed ≤100 chars
     poll_options = []
