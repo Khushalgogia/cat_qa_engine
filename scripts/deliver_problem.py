@@ -47,7 +47,7 @@ Return only valid JSON."""
 
     for attempt in range(3):
         try:
-            response = client.models.generate_content(model="gemini-2.5-flash", contents=prompt)
+            response = client.models.generate_content(model="gemini-3.0-flash-preview", contents=prompt)
             text = response.text.strip()
             if text.startswith("```"):
                 text = text.split("\n", 1)[1]
@@ -133,18 +133,32 @@ async def deliver():
     if is_revision:
         header = "📚 *REVISION ROUND*\n\nYou caught this before. Still remember why the flaw was where it was?\n\n"
     else:
-        header = "🔍 *SPOT THE FLAW — 2 PM*\n\n"
+        header = "🔍 *SPOT THE FLAW — 12 PM*\n\n"
+
+    # Build the message with full steps so no detail is lost
+    formatted_steps = "\n".join([f"Step {i+1}: {s}" for i, s in enumerate(steps)])
+    full_message = f"{header}*Problem:*\n{problem['original_problem']}\n\n*Steps:*\n{formatted_steps}"
 
     await bot.send_message(
         chat_id=chat_id,
-        text=f"{header}*Problem:*\n{problem['original_problem']}",
+        text=full_message,
         parse_mode="Markdown"
     )
+
+    # Build poll options with preview text, each guaranteed ≤100 chars
+    poll_options = []
+    for i, s in enumerate(steps):
+        prefix = f"Step {i+1}: "
+        max_preview = 100 - len(prefix) - 3  # reserve 3 for "..."
+        if len(prefix) + len(s) > 100:
+            poll_options.append(f"{prefix}{s[:max_preview]}...")
+        else:
+            poll_options.append(f"{prefix}{s}")
 
     await bot.send_poll(
         chat_id=chat_id,
         question="Which step contains the logical flaw?",
-        options=steps,
+        options=poll_options,
         type="quiz",
         correct_option_id=problem["flawed_step_number"] - 1,
         explanation=f"Trap: {problem['error_category']}\n\n{problem['explanation']}",

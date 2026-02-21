@@ -2,7 +2,7 @@ name: 2PM Problem Delivery
 
 on:
   schedule:
-    - cron: '37 14 * * *'  # 8:07 PM IST
+    - cron: '30 6 * * *'   # 12:00 PM IST
   workflow_dispatch:
 
 jobs:
