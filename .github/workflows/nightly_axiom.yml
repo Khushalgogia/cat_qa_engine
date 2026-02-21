@@ -2,7 +2,7 @@ name: 10PM Axiom
 
 on:
   schedule:
-    - cron: '30 16 * * *'   # 10:00 PM IST
+    - cron: '19 16 * * *'  # 9:49 PM IST
   workflow_dispatch:
 
 jobs:

@@ -2,7 +2,7 @@ name: Graveyard Nudge
 
 on:
   schedule:
-    - cron: '35 16 * * *'   # 10:05 PM IST daily (after axiom)
+    - cron: '43 16 * * *'  # 10:13 PM IST daily (24 min after axiom)
   workflow_dispatch:
 
 jobs:
