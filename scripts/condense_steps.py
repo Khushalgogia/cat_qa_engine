@@ -6,8 +6,8 @@ from google import genai
 
 load_dotenv()
 
-sb = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
-client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+sb = create_client(os.environ["SUPABASE_URL"].strip(), os.environ["SUPABASE_KEY"].strip())
+client = genai.Client(api_key=os.environ["GEMINI_API_KEY"].strip())
 
 r = sb.table("qa_flaw_deck").select("id, solution_steps, flawed_step_number, original_problem").execute()
 over_limit = [p for p in r.data if isinstance(p["solution_steps"], list) and len(p["solution_steps"]) > 10]

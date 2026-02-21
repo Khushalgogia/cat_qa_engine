@@ -6,9 +6,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
-bot = Bot(token=os.environ["TELEGRAM_TOKEN"])
-chat_id = os.environ["TELEGRAM_CHAT_ID"]
+supabase = create_client(os.environ["SUPABASE_URL"].strip(), os.environ["SUPABASE_KEY"].strip())
+bot = Bot(token=os.environ["TELEGRAM_TOKEN"].strip())
+chat_id = os.environ["TELEGRAM_CHAT_ID"].strip()
 
 async def deliver_axiom():
     # Get today's axiom

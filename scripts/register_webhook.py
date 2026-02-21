@@ -18,7 +18,7 @@ EDGE_FUNCTION_URL = os.environ.get(
 )
 
 async def register():
-    bot = Bot(token=os.environ["TELEGRAM_TOKEN"])
+    bot = Bot(token=os.environ["TELEGRAM_TOKEN"].strip())
     
     if "your-project-ref" in EDGE_FUNCTION_URL:
         print("❌ ERROR: You need to set your Edge Function URL first!")

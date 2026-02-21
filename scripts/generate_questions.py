@@ -7,8 +7,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
-supabase = create_client(os.environ["SUPABASE_URL"], os.environ["SUPABASE_KEY"])
+client = genai.Client(api_key=os.environ["GEMINI_API_KEY"].strip())
+supabase = create_client(os.environ["SUPABASE_URL"].strip(), os.environ["SUPABASE_KEY"].strip())
 
 # ─────────────────────────────────────────────
 # STEP 1: Generate raw math pairs programmatically
