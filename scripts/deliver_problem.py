@@ -135,54 +135,62 @@ async def deliver():
     else:
         header = "🔍 *SPOT THE FLAW — 12 PM*\n\n"
 
-    # Build the message with full steps so no detail is lost
+    # ── Telegram API Limits (from telegram.constants) ──
+    # Message text: ≤ 4096 chars
+    # Poll question: ≤ 300 chars
+    # Poll option:   ≤ 100 chars each
+    # Poll options:  ≤ 10 total
+    # Explanation:   ≤ 200 chars, max 2 newlines
+    # ──────────────────────────────────────────────────
+
+    # Build the message with full steps + full explanation (no detail lost)
     formatted_steps = "\n".join([f"Step {i+1}: {s}" for i, s in enumerate(steps)])
-    full_message = f"{header}*Problem:*\n{problem['original_problem']}\n\n*Steps:*\n{formatted_steps}"
+    full_explanation = f"Trap: {problem['error_category']}\n{problem['explanation']}"
+    full_message = (
+        f"{header}*Problem:*\n{problem['original_problem']}\n\n"
+        f"*Steps:*\n{formatted_steps}\n\n"
+        f"*Explanation:*\n{full_explanation}"
+    )
 
-    # Telegram message limit is 4096 chars — split if needed
+    # Send message (split if > 4096 chars)
     if len(full_message) <= 4096:
-        await bot.send_message(
-            chat_id=chat_id,
-            text=full_message,
-            parse_mode="Markdown"
-        )
+        await bot.send_message(chat_id=chat_id, text=full_message, parse_mode="Markdown")
     else:
-        # Send problem first, then steps separately
-        problem_msg = f"{header}*Problem:*\n{problem['original_problem']}"
-        steps_msg = f"*Steps:*\n{formatted_steps}"
+        # First chunk: header + problem
+        msg1 = f"{header}*Problem:*\n{problem['original_problem']}"
+        await bot.send_message(chat_id=chat_id, text=msg1[:4096], parse_mode="Markdown")
+        # Second chunk: steps + explanation
+        msg2 = f"*Steps:*\n{formatted_steps}\n\n*Explanation:*\n{full_explanation}"
+        while msg2:
+            await bot.send_message(chat_id=chat_id, text=msg2[:4096], parse_mode="Markdown")
+            msg2 = msg2[4096:]
 
-        await bot.send_message(
-            chat_id=chat_id,
-            text=problem_msg,
-            parse_mode="Markdown"
-        )
-        # If steps alone are still too long, chunk them
-        while steps_msg:
-            chunk = steps_msg[:4096]
-            steps_msg = steps_msg[4096:]
-            await bot.send_message(
-                chat_id=chat_id,
-                text=chunk,
-                parse_mode="Markdown"
-            )
-
-    # Build poll options with preview text, each guaranteed ≤100 chars
+    # Build poll options: "Step X: [preview...]" — each guaranteed ≤ 100 chars
     poll_options = []
     for i, s in enumerate(steps):
         prefix = f"Step {i+1}: "
-        max_preview = 100 - len(prefix) - 3  # reserve 3 for "..."
+        max_preview = 100 - len(prefix) - 3  # -3 for "..."
         if len(prefix) + len(s) > 100:
             poll_options.append(f"{prefix}{s[:max_preview]}...")
         else:
             poll_options.append(f"{prefix}{s}")
 
+    # Build explanation: must be ≤ 200 chars with max 2 newlines
+    poll_explanation = f"Trap: {problem['error_category']}"
+    if len(poll_explanation) < 197:
+        remaining = 200 - len(poll_explanation) - 3  # -3 for "\n\n" prefix + safety
+        expl_text = problem['explanation'][:remaining]
+        poll_explanation = f"{poll_explanation}\n\n{expl_text}"
+    # Final safety cap
+    poll_explanation = poll_explanation[:200]
+
     await bot.send_poll(
         chat_id=chat_id,
-        question="Which step contains the logical flaw?",
+        question="Which step contains the logical flaw?"[:300],
         options=poll_options,
         type="quiz",
         correct_option_id=problem["flawed_step_number"] - 1,
-        explanation=f"Trap: {problem['error_category']}\n\n{problem['explanation']}",
+        explanation=poll_explanation,
         is_anonymous=False
     )
 
