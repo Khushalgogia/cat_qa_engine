@@ -1,7 +1,7 @@
 import os
 import asyncio
 from supabase import create_client
-from telegram import Bot
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -27,17 +27,21 @@ async def graveyard_nudge():
         f"⚰️ *GRAVEYARD*\n\n"
         f"You missed this one before.\n\n"
         f"*Problem:* {problem['original_problem']}\n\n"
-        f"Don't solve it. Just recall the trap mentally.\n\n"
-        f"Reply *got it* if you remember, *nope* if it's still foggy."
+        f"Don't solve it. Just recall the trap mentally."
     )
 
-    await bot.send_message(chat_id=chat_id, text=message, parse_mode="Markdown")
+    # Inline buttons — tapping triggers the Edge Function instantly
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton("✅ Got It", callback_data=f"gy|{problem['id']}|got_it"),
+        InlineKeyboardButton("❌ Still Foggy", callback_data=f"gy|{problem['id']}|foggy")
+    ]])
 
-    # Write to graveyard_pending_id so handle_reply.py knows
-    # which problem a "got it"/"nope" reply belongs to
-    supabase.table("settings")\
-        .upsert({"key": "graveyard_pending_id", "value": problem["id"]})\
-        .execute()
+    await bot.send_message(
+        chat_id=chat_id,
+        text=message,
+        parse_mode="Markdown",
+        reply_markup=keyboard
+    )
 
     print(f"Graveyard nudge sent: {problem['id'][:8]}... ({problem['error_category']})")
 

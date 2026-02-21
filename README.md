@@ -36,7 +36,7 @@ You record your CAT class audio. This app:
 3. **Corrupts** one step in each solution with a subtle, realistic error
 4. **Stores** everything in a Supabase database
 5. **Delivers** one "Spot the Flaw" quiz poll to your Telegram every day at 2 PM
-6. **Auto-detects** whether you caught the flaw or missed it (at 6 PM)
+6. **Auto-detects** whether you caught the flaw or missed it (real-time via Edge Function)
 7. **Sends** the underlying trap axiom at 10 PM framed by your result ("you spotted this" vs "this got you")
 8. **Resurfaces** missed problems at 10:05 PM as graveyard recall (same consolidation window)
 9. When the bank runs dry → **revision rounds** re-deliver old caught problems
@@ -81,17 +81,19 @@ Everything is **fully automated** via GitHub Actions + Supabase Edge Functions.
 │                  │ │              │ │                  │
 │  deliver_sprint  │ │  sprint-     │ │  Sprint drills   │
 │  deliver_problem │ │  webhook     │ │  Quiz polls      │
-│  handle_reply    │ │  (real-time  │ │  Inline buttons  │
-│  deliver_axiom   │ │   button     │ │  Axioms          │
-│  graveyard_check │ │   handler)   │ │  Graveyard       │
-│  weekly_report   │ │              │ │  Reports         │
+│  deliver_axiom   │ │  (real-time  │ │  Inline buttons  │
+│  graveyard_check │ │   buttons,   │ │  Axioms          │
+│  weekly_report   │ │   polls,     │ │  Graveyard       │
+│                  │ │   graveyard) │ │  Reports         │
 └──────────────────┘ └──────────────┘ └──────────────────┘
 ```
 
-### Webhook + getUpdates Coexistence
-- **Webhook** (`callback_query` only) → Edge Function handles inline button taps in real-time
-- **getUpdates** (text messages, poll answers) → `handle_reply.py` temporarily removes webhook, polls for updates, then restores it
-- This is the only way Telegram allows both mechanisms to coexist
+### Real-Time Edge Function
+- **Webhook** (`callback_query` + `poll_answer`) → Edge Function handles sprint buttons, graveyard buttons, and quiz poll answers in real-time
+- No `getUpdates` polling needed — everything is event-driven
+
+### Known Behaviors
+- **Cold start delay**: On the Supabase free tier, the Edge Function goes to sleep after inactivity. The first morning sprint button tap may take 2-4 seconds. Subsequent taps are instant (<200ms). Don't spam-click if it hangs on the first question.
 
 ---
 
@@ -235,7 +237,7 @@ python3 -m venv venv
 source venv/bin/activate
 
 # Install dependencies
-pip install google-genai supabase==2.3.5 gotrue==1.3.0 python-telegram-bot==20.7 python-dotenv httpx==0.25.2
+pip install google-genai 'supabase>=2.11.0' 'python-telegram-bot>=21.0' python-dotenv
 
 # Install Whisper (local transcription only)
 pip install openai-whisper
@@ -254,22 +256,21 @@ cat_qa_engine/
 │   ├── transcribe.py               ← Audio → text (Whisper, local)
 │   ├── process_transcript.py       ← Extract + corrupt problems (Gemini → Supabase)
 │   ├── generate_questions.py       ← One-time: populate 109 sprint questions
-│   ├── deliver_problem.py          ← Daily quiz poll + revision fallback
+│   ├── deliver_problem.py          ← Daily quiz poll + revision fallback + auto-condense
 │   ├── deliver_axiom.py            ← Nightly axiom with caught/missed framing
 │   ├── deliver_sprint.py           ← Morning sprint with yesterday-miss guarantee
-│   ├── handle_reply.py             ← Detect poll/text reply, manage webhook cycle
-│   ├── graveyard_check.py          ← Resurface missed problems (10:05 PM)
+│   ├── graveyard_check.py          ← Resurface missed problems with inline buttons (10:05 PM)
 │   ├── weekly_report.py            ← Combined flaw + sprint stats report
 │   └── register_webhook.py         ← One-time: register Telegram webhook
 ├── supabase/
 │   └── functions/
 │       └── sprint-webhook/
-│           └── index.ts            ← Edge Function: handles inline button taps
+│           └── index.ts            ← Edge Function: sprint buttons + poll answers + graveyard
 ├── .github/
 │   └── workflows/
 │       ├── math_sprint.yml         ← 8:30 AM daily
 │       ├── daily_problem.yml       ← 2:00 PM daily
-│       ├── handle_reply.yml        ← 6:00 PM daily
+
 │       ├── nightly_axiom.yml       ← 10:00 PM daily
 │       ├── graveyard_nudge.yml     ← 10:05 PM daily
 │       └── weekly_report.yml       ← 8:30 PM Sunday
@@ -297,11 +298,9 @@ Create `requirements.txt`:
 
 ```
 google-genai
-supabase==2.3.5
-gotrue==1.3.0
-python-telegram-bot==20.7
+supabase>=2.11.0
+python-telegram-bot>=21.0
 python-dotenv
-httpx==0.25.2
 ```
 
 ---
@@ -320,6 +319,7 @@ supabase link --project-ref YOUR_PROJECT_REF
 
 # Set secrets (SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are auto-provided)
 supabase secrets set TELEGRAM_TOKEN=your_telegram_bot_token
+supabase secrets set TELEGRAM_CHAT_ID=your_chat_id
 
 # Deploy
 supabase functions deploy sprint-webhook --no-verify-jwt
@@ -395,21 +395,17 @@ python scripts/process_transcript.py transcripts/class_01_percentages.txt
 
 ---
 
-### 4. `handle_reply.py` — Reply Detection (GitHub Actions, 6 PM)
+### 4. Poll Answer + Graveyard Handling — Edge Function (Real-Time)
 
-The most complex script. Handles three concerns:
+Formerly handled by `handle_reply.py` (deleted). Now processed instantly by the Edge Function:
 
-**Webhook cycle**: Telegram forbids `getUpdates` while a webhook is active. This script temporarily deletes the webhook, calls `getUpdates`, processes replies, then restores the webhook in a `finally` block (so it always restores, even on error/early return).
+**Poll answers**: When you answer the 2 PM quiz poll, the Edge Function receives the `poll_answer` event, looks up `todays_problem_id` from settings, compares your answer to `flawed_step_number - 1`, and updates `qa_flaw_deck` + `daily_log` immediately.
 
-**Graveyard replies**: Checks `graveyard_pending_id` in settings first. If set and a "got it"/"nope" text is found:
-- "got it" → status → `reviewed` (exits graveyard permanently)
-- "nope" → stays `missed` (comes back next graveyard cycle)
+**Graveyard buttons**: When you tap ✅ Got It or ❌ Still Foggy on the graveyard nudge, the Edge Function handles it instantly:
+- Got It → status → `reviewed` (exits graveyard permanently)
+- Still Foggy → stays `missed` (comes back next cycle)
 
-**Flaw replies**: If no graveyard reply, checks for today's flaw problem:
-- Poll answer: compares chosen option to `flawed_step_number`
-- Text: "caught"/"got it" or "missed"/"nope" (overrides poll)
-
-**Reminder fallback**: If no reply found at all → sends "⏰ Did you spot the flaw? Reply caught or missed."
+**Idempotency**: The Edge Function checks if a problem is already resolved before updating, preventing duplicate processing.
 
 ---
 
@@ -427,10 +423,9 @@ The most complex script. Handles three concerns:
 ### 6. `graveyard_check.py` — Missed Problem Recall (GitHub Actions, 10:05 PM)
 
 1. Finds the oldest `missed` problem
-2. Sends it to Telegram for mental recall (not re-solving)
-3. **Writes problem ID to `graveyard_pending_id`** in settings (so `handle_reply.py` knows which problem a "got it" reply belongs to)
-4. Reply "got it" → problem status → `reviewed` (permanently exits graveyard)
-5. Reply "nope" → stays `missed`, cycles back
+2. Sends it to Telegram with **inline buttons** (✅ Got It / ❌ Still Foggy)
+3. The problem ID is embedded in the button callback data — no cross-script state needed
+4. Tapping a button → Edge Function handles it instantly (see section 4 above)
 
 **Why 10:05 PM?** Runs 5 minutes after the axiom. Your brain is already in reflection mode. Graveyard recall + axiom consolidation happen in the same pre-sleep window = neurologically superior to morning delivery.
 
@@ -476,21 +471,26 @@ python scripts/generate_questions.py
 
 ---
 
-### 10. `sprint-webhook/index.ts` — Edge Function (Supabase, Always-On)
+### 10. `sprint-webhook/index.ts` — Edge Function (Supabase)
 
-Runs on Supabase Deno runtime. Receives inline keyboard taps via Telegram webhook:
-1. Parses callback data: `sp|{session_id}|{option_index}`
-2. If wrong → appends to debt queue, shows "❌ added to debt queue"
-3. If right → shows "✅ Correct!"
-4. **Edits the message in-place** with next question (no new messages)
-5. On completion → shows sprint summary with debt stats
-6. Logs every answer in `sprint_logs`
+Runs on Supabase Deno runtime. Handles 3 types of Telegram events:
+
+**Sprint callbacks** (`sp|{session_id}|{option_index}`):
+1. If wrong → appends to debt queue, shows "❌ added to debt queue"
+2. If right → shows "✅ Correct!"
+3. **Edits the message in-place** with next question (no new messages)
+4. On completion → shows sprint summary with debt stats
+5. Logs every answer in `sprint_logs`
+
+**Poll answers** (2 PM quiz): Compares answer to correct flaw step, updates DB + sends confirmation.
+
+**Graveyard callbacks** (`gy|{problem_id}|{action}`): Updates problem status and edits message to remove buttons.
 
 ---
 
 ### 11. `register_webhook.py` — Webhook Registration (One-Time)
 
-Tells Telegram to send only `callback_query` events to the Edge Function. Text messages and poll answers are NOT sent to the webhook — they flow through `getUpdates` when `handle_reply.py` runs.
+Tells Telegram to send `callback_query` + `poll_answer` events to the Edge Function. All interactive events (sprint buttons, graveyard buttons, quiz answers) are handled in real-time.
 
 ---
 
@@ -554,10 +554,9 @@ Return JSON: [{"index": N, "question_text": "rewritten scenario"}]
 | Time | What Arrives | Your Action | Duration |
 |------|-------------|-------------|----------|
 | 8:30 AM | ⚡ Math Sprint (5 questions, inline keyboard) | Tap through questions. Wrong answers queue up. | 2-3 min |
-| 2:00 PM | 🔍 Spot the Flaw quiz poll | Find the flaw, tap answer | 1 min |
-| 6:00 PM | ⏰ Reminder (if you haven't replied) | Reply "caught" or "missed" | 10 sec |
+| 2:00 PM | 🔍 Spot the Flaw quiz poll | Find the flaw, tap answer (auto-detected) | 1 min |
 | 10:00 PM | 🌙 Trap axiom (framed by your result) | Read, feel the framing | 20 sec |
-| 10:05 PM | ⚰️ Graveyard recall (if any missed) | Reply "got it" or "nope" | 30 sec |
+| 10:05 PM | ⚰️ Graveyard recall (if any missed) | Tap ✅ Got It or ❌ Still Foggy | 10 sec |
 | Sunday 8:30 PM | 📊 Weekly report + sprint stats | Read blind spots | 1 min |
 
 ### When You Get a New Class Recording (~15 minutes)
@@ -578,7 +577,6 @@ All times shown in IST (UTC+5:30).
 |----------|-----------|-----|--------|
 | Math Sprint | `0 3 * * *` | 8:30 AM daily | `deliver_sprint.py` |
 | Daily Problem | `30 8 * * *` | 2:00 PM daily | `deliver_problem.py` |
-| Handle Reply | `30 12 * * *` | 6:00 PM daily | `handle_reply.py` |
 | Nightly Axiom | `30 16 * * *` | 10:00 PM daily | `deliver_axiom.py` |
 | Graveyard Nudge | `35 16 * * *` | 10:05 PM daily | `graveyard_check.py` |
 | Weekly Report | `0 15 * * 0` | 8:30 PM Sunday | `weekly_report.py` |
@@ -587,8 +585,8 @@ All times shown in IST (UTC+5:30).
 
 ## Design Decisions
 
-### Why handle_reply runs at 6 PM, not 2:40 PM
-You get the quiz at 2 PM. If you're in a meeting until 3:30 PM, a 2:40 PM handler finds nothing, logs nothing, and your answer is lost forever. 4 hours is enough time to have seen the poll.
+### Why everything is real-time now (no more handle_reply.py)
+The original design used `handle_reply.py` at 6 PM to batch-process poll answers and text replies. This required temporarily deleting the webhook (race condition) and waiting hours for feedback. Now the Edge Function handles poll answers and graveyard button taps instantly — zero delay, zero webhook cycling.
 
 ### Why graveyard moved from 8 AM to 10:05 PM
 Morning had cognitive overload: graveyard at 8 AM + sprint at 8:30 AM = two different systems simultaneously. 10:05 PM puts graveyard recall in the same pre-sleep window as the axiom → both benefit from sleep-dependent consolidation.
@@ -599,11 +597,8 @@ Same axiom, different emotional encoding. "This one got you today" creates a pre
 ### Why yesterday's miss is guaranteed in today's sprint (not just weighted)
 Statistical weighting across 7 days dilutes the signal. Guaranteed 2/5 questions from yesterday's missed category creates explicit, immediate repair: afternoon miss → morning drill. The connection is visceral.
 
-### Why handle_reply.py cycles the webhook
-Telegram forbids `getUpdates` while any webhook is active. The script deletes the webhook, polls for text replies/poll answers, then restores it. The `finally` block guarantees restoration even on crash.
-
-### Why graveyard uses graveyard_pending_id (not todays_problem_id)
-The original design overloaded `todays_problem_id` for both the 2 PM flaw and the graveyard nudge. When both systems wrote to the same key, the graveyard reply path was a black hole — "got it" was interpreted as a flaw reply. Separate keys, separate paths.
+### Why graveyard uses inline buttons (not text replies)
+Inline buttons embed the problem ID in callback_data, triggering the Edge Function instantly. No cross-script state needed, no delayed processing, no "got it" text going to a black hole.
 
 ---
 
@@ -612,11 +607,11 @@ The original design overloaded `todays_problem_id` for both the 2 PM flaw and th
 ### "Rate limited" / 429 errors from Gemini
 Built-in retry with exponential backoff (10s → 20s → 40s → 80s → 160s). If persistent, wait 1 minute.
 
-### Supabase "proxy" error
-Fixed by pinning `gotrue==1.3.0` and `httpx==0.25.2`.
+### Supabase connection issues
+Ensure `supabase>=2.11.0` and `python-telegram-bot>=21.0` — older versions have httpx conflicts.
 
 ### Gemini model not found (404)
-We use `gemini-3-flash-preview`. To check available models:
+We use `gemini-2.5-flash`. To check available models:
 ```python
 from google import genai
 client = genai.Client(api_key="YOUR_KEY")
@@ -628,15 +623,13 @@ for m in client.models.list():
 1. Verify Edge Function: `supabase functions list`
 2. Check logs: Supabase Dashboard → Edge Functions → sprint-webhook → Logs
 3. Re-register webhook: `python scripts/register_webhook.py`
-
-### "can't use getUpdates while webhook is active"
-Fixed. `handle_reply.py` now cycles the webhook: delete → getUpdates → restore.
+4. Ensure `TELEGRAM_CHAT_ID` is set in Edge Function secrets
 
 ### Problem bank exhausted
 Fixed. `deliver_problem.py` falls back to re-delivering caught problems as "📚 Revision Round."
 
-### Graveyard replies disappearing
-Fixed. `graveyard_check.py` writes to `graveyard_pending_id` (not `todays_problem_id`). `handle_reply.py` checks this key first, so "got it"/"nope" replies go to the right place.
+### Graveyard buttons not responding
+Re-register webhook with `python scripts/register_webhook.py` (must include `callback_query` in allowed_updates). Check Edge Function logs for errors.
 
 ---
 
@@ -645,11 +638,9 @@ Fixed. `graveyard_check.py` writes to `graveyard_pending_id` (not `todays_proble
 | Package | Version | Purpose |
 |---------|---------|---------|
 | `google-genai` | latest | Gemini AI API |
-| `supabase` | 2.3.5 | Database client |
-| `gotrue` | 1.3.0 | Supabase auth (pinned) |
-| `python-telegram-bot` | 20.7 | Telegram Bot API |
+| `supabase` | ≥2.11.0 | Database client |
+| `python-telegram-bot` | ≥21.0 | Telegram Bot API |
 | `python-dotenv` | latest | Load .env files |
-| `httpx` | 0.25.2 | HTTP client (pinned) |
 | `openai-whisper` | latest | Audio transcription (local only) |
 
 ### Infrastructure

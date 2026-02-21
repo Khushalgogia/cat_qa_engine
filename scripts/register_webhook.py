@@ -27,19 +27,19 @@ async def register():
         sys.exit(1)
     
     print(f"Registering webhook: {EDGE_FUNCTION_URL}")
-    print("Setting allowed_updates to ['callback_query'] only...")
-    print("(Text messages still flow through getUpdates as before.)\n")
+    print("Setting allowed_updates to ['callback_query', 'poll_answer']...")
+    print("(All interactive events now go to the Edge Function.)\n")
     
     result = await bot.set_webhook(
         url=EDGE_FUNCTION_URL,
-        allowed_updates=["callback_query"]  # CRITICAL: only inline taps, not messages
+        allowed_updates=["callback_query", "poll_answer"]
     )
     
     if result:
         print("✅ Webhook registered successfully!")
         print(f"   URL: {EDGE_FUNCTION_URL}")
-        print("   Telegram will now send ONLY callback_query events to this webhook.")
-        print("   Text messages (caught/missed) still flow through getUpdates as before.")
+        print("   Telegram will send callback_query + poll_answer events to this webhook.")
+        print("   Sprint buttons, graveyard buttons, and quiz answers all handled in real-time.")
     else:
         print("❌ Webhook registration failed. Check your Edge Function URL.")
     

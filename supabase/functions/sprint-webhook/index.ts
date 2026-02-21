@@ -5,6 +5,7 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 )
 const TELEGRAM_TOKEN = Deno.env.get('TELEGRAM_TOKEN')!
+const CHAT_ID = Deno.env.get('TELEGRAM_CHAT_ID')!
 const BASE_URL = `https://api.telegram.org/bot${TELEGRAM_TOKEN}`
 
 // ── Telegram helpers ──────────────────────────────────────
@@ -33,6 +34,14 @@ async function editMessage(chatId: string, messageId: number, text: string, keyb
   })
 }
 
+async function sendMessage(chatId: string, text: string) {
+  await fetch(`${BASE_URL}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, text, parse_mode: 'Markdown' })
+  })
+}
+
 function buildKeyboard(sessionId: string, options: string[]) {
   const buttons = options.map((opt, idx) => ({
     text: opt,
@@ -46,29 +55,114 @@ function buildKeyboard(sessionId: string, options: string[]) {
   return { inline_keyboard: rows }
 }
 
-// ── Main handler ──────────────────────────────────────────
+// ── Poll Answer Handler (2 PM Spot the Flaw) ─────────────
 
-Deno.serve(async (req) => {
-  if (req.method !== 'POST') return new Response('OK')
+async function handlePollAnswer(pollAnswer: { option_ids: number[] }) {
+  const chosen = pollAnswer.option_ids
+  if (!chosen || chosen.length === 0) return
 
-  const update = await req.json()
-  if (!update.callback_query) return new Response('OK')
+  // Get today's problem ID from settings
+  const { data: setting } = await supabase
+    .from('settings')
+    .select('value')
+    .eq('key', 'todays_problem_id')
+    .single()
 
-  const cq = update.callback_query
-  const data: string = cq.data || ''
-  const chatId = String(cq.message.chat.id)
-  const messageId: number = cq.message.message_id
-
-  // Only handle sprint callbacks
-  if (!data.startsWith('sp|')) {
-    await answerCallback(cq.id)
-    return new Response('OK')
+  if (!setting || !setting.value) {
+    console.log('No todays_problem_id in settings. Ignoring poll answer.')
+    return
   }
 
-  // Parse: sp|{session_id}|{option_index}
-  const [, sessionId, optStr] = data.split('|')
-  const selectedIndex = parseInt(optStr)
+  const problemId = setting.value
 
+  // Load the problem
+  const { data: problem } = await supabase
+    .from('qa_flaw_deck')
+    .select('flawed_step_number, status')
+    .eq('id', problemId)
+    .single()
+
+  if (!problem) {
+    console.log(`Problem ${problemId} not found.`)
+    return
+  }
+
+  // Already resolved — don't overwrite (idempotency guard)
+  if (problem.status === 'caught' || problem.status === 'missed') {
+    console.log(`Problem already resolved as '${problem.status}'. Skipping.`)
+    return
+  }
+
+  const correctOption = problem.flawed_step_number - 1
+  const isCaught = chosen[0] === correctOption
+  const newStatus = isCaught ? 'caught' : 'missed'
+
+  // Update qa_flaw_deck
+  await supabase
+    .from('qa_flaw_deck')
+    .update({ status: newStatus })
+    .eq('id', problemId)
+
+  // Update daily_log
+  await supabase
+    .from('daily_log')
+    .update({ caught: isCaught })
+    .eq('problem_id', problemId)
+
+  const emoji = isCaught ? '✅' : '❌'
+  await sendMessage(CHAT_ID, `${emoji} Recorded as *${isCaught ? 'CAUGHT' : 'MISSED'}*.`)
+  console.log(`Poll answer processed: ${problemId.slice(0, 8)}... → '${newStatus}'`)
+}
+
+// ── Graveyard Callback Handler ────────────────────────────
+
+async function handleGraveyardCallback(
+  cqId: string,
+  chatId: string,
+  messageId: number,
+  problemId: string,
+  action: string
+) {
+  // Verify problem is still "missed" (guards against stale buttons)
+  const { data: problem } = await supabase
+    .from('qa_flaw_deck')
+    .select('status')
+    .eq('id', problemId)
+    .single()
+
+  if (!problem || problem.status !== 'missed') {
+    await answerCallback(cqId, 'Already resolved.')
+    return
+  }
+
+  if (action === 'got_it') {
+    await supabase
+      .from('qa_flaw_deck')
+      .update({ status: 'reviewed' })
+      .eq('id', problemId)
+
+    await answerCallback(cqId, '✅ Graveyard cleared!')
+    await editMessage(chatId, messageId,
+      '✅ Graveyard cleared. That trap won\'t catch you again.')
+    console.log(`Graveyard ${problemId.slice(0, 8)}... → reviewed`)
+  } else {
+    // "foggy" — leave as missed, it'll come back
+    await answerCallback(cqId, '📌 Stays in graveyard')
+    await editMessage(chatId, messageId,
+      '📌 Still foggy — this one stays in the graveyard. It\'ll come back.')
+    console.log(`Graveyard ${problemId.slice(0, 8)}... → stays missed`)
+  }
+}
+
+// ── Sprint Handler (existing logic, unchanged) ───────────
+
+async function handleSprintCallback(
+  cqId: string,
+  chatId: string,
+  messageId: number,
+  sessionId: string,
+  selectedIndex: number
+) {
   // Load session
   const { data: session, error: sessErr } = await supabase
     .from('sprint_sessions')
@@ -77,8 +171,8 @@ Deno.serve(async (req) => {
     .single()
 
   if (sessErr || !session || session.completed) {
-    await answerCallback(cq.id, 'Session expired.')
-    return new Response('OK')
+    await answerCallback(cqId, 'Session expired.')
+    return
   }
 
   const queue: string[] = session.question_queue
@@ -93,8 +187,8 @@ Deno.serve(async (req) => {
     .single()
 
   if (!question) {
-    await answerCallback(cq.id, 'Error loading question.')
-    return new Response('OK')
+    await answerCallback(cqId, 'Error loading question.')
+    return
   }
 
   const isCorrect = selectedIndex === question.correct_answer_index
@@ -121,9 +215,9 @@ Deno.serve(async (req) => {
   if (!isCorrect) {
     newQueue.push(currentQuestionId)  // append to end
     newDebt += 1
-    await answerCallback(cq.id, '❌ Wrong — added to debt queue!')
+    await answerCallback(cqId, '❌ Wrong — added to debt queue!')
   } else {
-    await answerCallback(cq.id, '✅ Correct!')
+    await answerCallback(cqId, '✅ Correct!')
   }
 
   const nextIndex = currentIndex + 1
@@ -150,7 +244,7 @@ Deno.serve(async (req) => {
     }
 
     await editMessage(chatId, messageId, summary)
-    return new Response('OK')
+    return
   }
 
   // ── Next question ───────────────────────────────────────
@@ -164,7 +258,7 @@ Deno.serve(async (req) => {
 
   if (!nextQ) {
     await editMessage(chatId, messageId, 'Error loading next question.')
-    return new Response('OK')
+    return
   }
 
   const total = newQueue.length
@@ -176,5 +270,44 @@ Deno.serve(async (req) => {
   const keyboard = buildKeyboard(sessionId, nextQ.options as string[])
 
   await editMessage(chatId, messageId, text, keyboard)
+}
+
+// ── Main handler ──────────────────────────────────────────
+
+Deno.serve(async (req) => {
+  if (req.method !== 'POST') return new Response('OK')
+
+  const update = await req.json()
+
+  // ── Branch 1: Poll answer (2 PM Spot the Flaw) ─────────
+  if (update.poll_answer) {
+    await handlePollAnswer(update.poll_answer)
+    return new Response('OK')
+  }
+
+  // ── Branch 2 & 3: Callback queries ─────────────────────
+  if (!update.callback_query) return new Response('OK')
+
+  const cq = update.callback_query
+  const data: string = cq.data || ''
+  const chatId = String(cq.message.chat.id)
+  const messageId: number = cq.message.message_id
+
+  // Sprint callback: sp|{session_id}|{option_index}
+  if (data.startsWith('sp|')) {
+    const [, sessionId, optStr] = data.split('|')
+    await handleSprintCallback(cq.id, chatId, messageId, sessionId, parseInt(optStr))
+    return new Response('OK')
+  }
+
+  // Graveyard callback: gy|{problem_id}|{action}
+  if (data.startsWith('gy|')) {
+    const [, problemId, action] = data.split('|')
+    await handleGraveyardCallback(cq.id, chatId, messageId, problemId, action)
+    return new Response('OK')
+  }
+
+  // Unknown callback — acknowledge silently
+  await answerCallback(cq.id)
   return new Response('OK')
 })
