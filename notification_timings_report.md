@@ -62,12 +62,12 @@
 
 ---
 
-## 🌙 Evening Block (7:30 – 8:00 PM)
-> Third math sprint session and the evening study wind-down.
+## 🌙 Evening Block (7:30 PM)
+> Second math sprint session of the day.
 
 | Time (IST) | Repo | Workflow | What It Does | Delivery |
 | :--- | :--- | :--- | :--- | :--- |
-| **07:30 PM** | `cat_qa_engine` | `math_sprint_evening.yml` | **Evening Math Sprint (Telegram)** — Third and final sprint session of the day. Same format: 7 quick math questions with weak-area targeting and interactive buttons. | 📱 Telegram only |
+| **07:30 PM** | `cat_qa_engine` | `math_sprint_evening.yml` | **Evening Math Sprint (Telegram)** — Second and final sprint session of the day. Same format: 7 quick math questions with weak-area targeting and interactive buttons. | 📱 Telegram only |
 
 > **Cron details:**
 > - `math_sprint_evening.yml` → `0 14 * * *` (14:00 UTC = 7:30 PM IST daily)
@@ -111,10 +111,10 @@ In addition to the daily schedule above, weekends also get:
 | Repo | What It Does (Big Picture) | Notifications/Day |
 | :--- | :--- | :--- |
 | `cat_qa_engine` | CAT math — 2× daily sprints (7 Qs each), flaw detection, axioms, graveyard, weekly report | 5/day + 1 Sunday report |
-| `charisma-repo` | Speaking/charisma exercise | 2/week (Mon & Wed) at 6:47 PM |
+| `charisma-repo` | Speaking/charisma exercise | 2/week (Mon & Wed) at 11:00 AM |
 | `project99-repo` | Vocabulary — learn 3 new words mornings, get quizzed afternoons | 2/weekday, 4/weekend day |
 | `rc-practice-repo` | Reading Comprehension with real essays | 1/day |
-| `verbal_drill` | Verbal fluency — object naming (5:33 PM) + word construction (5:47 PM) | 2/day |
+| `verbal_drill` | Verbal fluency — object naming (10:00 AM) + word construction (10:14 AM) | 2/day |
 | `wingman-repo` | Emotional motivation — "Future Self" IIM scenarios | 1/day |
 
 ---
