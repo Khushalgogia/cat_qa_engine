@@ -40,7 +40,7 @@ def generate_raw_questions():
         })
 
     # Squares: 1² to 30²
-    for n in range(1, 31):
+    for n in range(8, 31):
         ans = n * n
         wrongs = [str((n + r) ** 2) for r in [-2, -1, 1, 2] if r != 0 and (n + r) > 0]
         wrong_3 = random.sample(wrongs, min(3, len(wrongs)))
@@ -57,7 +57,7 @@ def generate_raw_questions():
         })
 
     # Cubes: 1³ to 15³
-    for n in range(1, 16):
+    for n in range(2, 16):
         ans = n ** 3
         wrongs = [str((n + r) ** 3) for r in [-1, 1, 2] if (n + r) > 0]
         wrong_3 = random.sample(wrongs, min(3, len(wrongs)))
@@ -125,6 +125,132 @@ def generate_raw_questions():
             "correct_answer": str(ans),
             "options": opts,
             "correct_answer_index": opts.index(str(ans))
+        })
+
+    # ── NEW CATEGORY 1: Percentage to Fraction Reverse ──
+    pct_fraction_map = {
+        "12.5%": "1/8", "16.67%": "1/6", "33.33%": "1/3", "37.5%": "3/8",
+        "62.5%": "5/8", "66.67%": "2/3", "87.5%": "7/8", "14.28%": "1/7",
+        "28.57%": "2/7", "42.85%": "3/7", "57.14%": "4/7", "71.42%": "5/7",
+        "85.71%": "6/7", "11.11%": "1/9", "22.22%": "2/9", "44.44%": "4/9",
+        "55.55%": "5/9", "77.77%": "7/9", "9.09%": "1/11", "18.18%": "2/11"
+    }
+    all_fractions = list(pct_fraction_map.values())
+    for pct, fraction in pct_fraction_map.items():
+        wrong = [v for v in all_fractions if v != fraction]
+        wrong_3 = random.sample(wrong, 3)
+        opts = wrong_3 + [fraction]
+        random.shuffle(opts)
+        questions.append({
+            "category": "pct_to_fraction",
+            "raw_question": f"{pct} equals which fraction?",
+            "correct_answer": fraction,
+            "options": opts,
+            "correct_answer_index": opts.index(fraction)
+        })
+
+    # ── NEW CATEGORY 2: Approximate Square/Cube Roots ──
+    import math
+    # Square roots of non-perfect squares
+    root_targets = [50, 75, 110, 150, 200, 250, 300, 410, 500, 620,
+                    700, 850, 950, 1100, 1250, 1500, 1750, 2000]
+    for n in root_targets:
+        ans = int(math.isqrt(n))
+        # If n is closer to (ans+1)^2, round up
+        if abs(n - ans*ans) > abs(n - (ans+1)*(ans+1)):
+            ans = ans + 1
+        wrongs = [str(ans + d) for d in [-2, -1, 1, 2] if ans + d > 0 and d != 0]
+        wrong_3 = random.sample(wrongs, min(3, len(wrongs)))
+        opts = wrong_3 + [str(ans)]
+        random.shuffle(opts)
+        questions.append({
+            "category": "approx_root",
+            "raw_question": f"Closest integer to √{n}?",
+            "correct_answer": str(ans),
+            "options": opts,
+            "correct_answer_index": opts.index(str(ans))
+        })
+
+    # Cube roots of non-perfect cubes
+    cube_root_targets = [30, 50, 100, 200, 350, 500, 700, 1000, 1500, 2500, 3000]
+    for n in cube_root_targets:
+        ans = int(round(n ** (1/3)))
+        # Verify rounding
+        if abs(n - ans**3) > abs(n - (ans+1)**3):
+            ans = ans + 1
+        if ans > 1 and abs(n - ans**3) > abs(n - (ans-1)**3):
+            ans = ans - 1
+        wrongs = [str(ans + d) for d in [-2, -1, 1, 2] if ans + d > 0 and d != 0]
+        wrong_3 = random.sample(wrongs, min(3, len(wrongs)))
+        opts = wrong_3 + [str(ans)]
+        random.shuffle(opts)
+        questions.append({
+            "category": "approx_root",
+            "raw_question": f"Closest integer to ∛{n}?",
+            "correct_answer": str(ans),
+            "options": opts,
+            "correct_answer_index": opts.index(str(ans))
+        })
+
+    # ── NEW CATEGORY 3: Fraction Comparisons ──
+    fraction_pairs = [
+        (7, 11, 9, 14), (5, 8, 7, 11), (3, 7, 5, 12), (4, 9, 5, 11),
+        (7, 13, 6, 11), (8, 15, 9, 17), (5, 9, 6, 11), (3, 8, 4, 11),
+        (7, 12, 8, 13), (5, 7, 9, 13), (11, 17, 13, 20), (4, 7, 7, 12),
+        (6, 13, 5, 11), (9, 16, 7, 12), (3, 5, 5, 8), (8, 11, 10, 13)
+    ]
+    for a, b, c, d in fraction_pairs:
+        val1 = a / b
+        val2 = c / d
+        f1 = f"{a}/{b}"
+        f2 = f"{c}/{d}"
+        if val1 > val2:
+            correct = f1
+            wrong_main = f2
+        else:
+            correct = f2
+            wrong_main = f1
+        opts = [correct, wrong_main, "They are equal", "Cannot determine"]
+        random.shuffle(opts)
+        questions.append({
+            "category": "fraction_compare",
+            "raw_question": f"Which is larger: {f1} or {f2}?",
+            "correct_answer": correct,
+            "options": opts,
+            "correct_answer_index": opts.index(correct)
+        })
+
+    # ── NEW CATEGORY 4: Successive Percentages ──
+    successive_cases = [
+        (20, -10, "+8%"), (10, 10, "+21%"), (25, -20, "0%"),
+        (30, -10, "+17%"), (20, 20, "+44%"), (50, -30, "+5%"),
+        (10, -10, "-1%"), (40, -25, "+5%"), (15, -15, "-2.25%"),
+        (20, -20, "-4%"), (25, 25, "+56.25%"), (30, -30, "-9%"),
+        (10, 20, "+32%"), (20, -5, "+14%"), (33, -25, "-0.25%"),
+        (50, -50, "-25%"), (100, -50, "0%"), (10, 30, "+43%")
+    ]
+    for inc, dec, net in successive_cases:
+        sign1 = f"+{inc}%" if inc > 0 else f"{inc}%"
+        sign2 = f"+{dec}%" if dec > 0 else f"{dec}%"
+        # Generate plausible wrong answers
+        raw_sum = inc + dec
+        wrong_opts = [
+            f"{'+' if raw_sum >= 0 else ''}{raw_sum}%",
+            f"{'+' if raw_sum + 5 >= 0 else ''}{raw_sum + 5}%",
+            f"{'+' if raw_sum - 3 >= 0 else ''}{raw_sum - 3}%"
+        ]
+        # Remove duplicates of correct answer
+        wrong_opts = [w for w in wrong_opts if w != net][:3]
+        while len(wrong_opts) < 3:
+            wrong_opts.append(f"+{random.randint(1, 20)}%")
+        opts = wrong_opts[:3] + [net]
+        random.shuffle(opts)
+        questions.append({
+            "category": "successive_pct",
+            "raw_question": f"{sign1} then {sign2} = net effect?",
+            "correct_answer": net,
+            "options": opts,
+            "correct_answer_index": opts.index(net)
         })
 
     return questions

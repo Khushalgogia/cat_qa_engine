@@ -24,7 +24,12 @@ CATEGORY_MAP = {
     "Proportionality Assumed Equal": "reciprocal",
     "Misread Constraint": "prime",
     "At-Least vs Exactly Confusion": "prime",
-    "Division by Variable Without Checking Zero": "reciprocal"
+    "Division by Variable Without Checking Zero": "reciprocal",
+    # New categories map to themselves
+    "pct_to_fraction": "pct_to_fraction",
+    "approx_root": "approx_root",
+    "fraction_compare": "fraction_compare",
+    "successive_pct": "successive_pct"
 }
 
 def escape_md(text):
@@ -83,7 +88,7 @@ def get_weak_categories():
     return [cat for cat, _ in Counter(sprint_cats).most_common(2)]
 
 def select_questions(weak_categories, yesterday_miss_cat):
-    """Select 5 questions with yesterday-miss guarantee + weak spot weighting."""
+    """Select 7 questions with yesterday-miss guarantee + weak spot weighting."""
     questions = []
     existing_ids = []
 
@@ -101,9 +106,9 @@ def select_questions(weak_categories, yesterday_miss_cat):
             existing_ids = [q["id"] for q in questions]
 
     # Priority 2: Fill from weak categories (if any slots left)
-    if len(questions) < 2 and weak_categories:
+    if len(questions) < 3 and weak_categories:
         for cat in weak_categories[:2]:
-            if len(questions) >= 2:
+            if len(questions) >= 3:
                 break
             result = supabase.table("math_sprints")\
                 .select("*")\
@@ -117,8 +122,8 @@ def select_questions(weak_categories, yesterday_miss_cat):
                     questions.append(random.choice(pool))
                     existing_ids.append(questions[-1]["id"])
 
-    # Priority 3: Fill to 5 with random least-attempted questions
-    needed = 5 - len(questions)
+    # Priority 3: Fill to 7 with random least-attempted questions
+    needed = 7 - len(questions)
     all_available = supabase.table("math_sprints")\
         .select("*")\
         .order("times_attempted")\
@@ -131,7 +136,7 @@ def select_questions(weak_categories, yesterday_miss_cat):
         questions.extend(pool[:needed])
 
     random.shuffle(questions)
-    return questions[:5]
+    return questions[:7]
 
 async def deliver():
     yesterday_miss = get_yesterday_miss()
