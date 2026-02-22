@@ -1,6 +1,6 @@
 # Notification Timings & What They Do — Complete Guide
 
-> Last updated: 22 Feb 2026 · All times in IST · Verified from actual workflow YAML files and Python scripts
+> Last updated: 23 Feb 2026 · All times in IST · Verified from actual workflow YAML files and Python scripts
 
 ---
 
@@ -114,7 +114,7 @@ In addition to the daily schedule above, weekends also get:
 | :--- | :--- | :--- |
 | `cat_qa_engine` | CAT math — 2× daily sprints (7 Qs each), 2× flaw detection, axioms, graveyard, weekly report | 6/day + 1 Sunday report |
 | `charisma-repo` | Speaking/charisma exercise | 2/week (Mon & Wed) at 11:00 AM |
-| `project99-repo` | Vocabulary — learn 3 new words mornings, get quizzed afternoons | 2/weekday, 4/weekend day |
+| `project99-repo` | Vocabulary — learn 3 new words mornings (weekdays), get quizzed at 5 PM | 2/weekday, 4/weekend day |
 | `rc-practice-repo` | Reading Comprehension with real essays | 1/day |
 | `verbal_drill` | Verbal fluency — object naming (10:00 AM) + word construction (10:14 AM) | 2/day |
 | `wingman-repo` | Emotional motivation — "Future Self" IIM scenarios | 1/day |
@@ -172,12 +172,13 @@ In addition to the daily schedule above, weekends also get:
 
 | Change | Old | New |
 | :--- | :--- | :--- |
-| Spot the Flaw timing | 8:07 PM (evening) | **2:30 PM** (mid-day) |
+| Spot the Flaw timing | 8:07 PM (1×/day) | **2:30 PM + 8:00 PM** (2×/day) |
 | Verbal Drills timing | 5:33 & 5:47 PM | **10:00 & 10:14 AM** |
 | Math Sprint frequency | 1× daily (morning only) | **2× daily** (morning + evening) |
 | Math Sprint question count | 5 questions per sprint | **7 questions** per sprint |
 | Deleted workflow: `math_sprint_afternoon.yml` | 2:30 PM IST daily | Replaced by Spot the Flaw |
 | New workflow: `math_sprint_evening.yml` | — | **7:30 PM** IST daily |
+| New workflow: `daily_problem_evening.yml` | — | **8:00 PM** IST daily |
 | New sprint categories | — | `pct_to_fraction`, `approx_root`, `fraction_compare`, `successive_pct` |
 | Axiom format | Plain text | **Cognitive Anchor** (Core Rule + Mental Model + Anchor Question) |
-| Total daily cat_qa_engine notifications | 4/day | **5/day** |
+| Total daily cat_qa_engine notifications | 4/day | **6/day** |
