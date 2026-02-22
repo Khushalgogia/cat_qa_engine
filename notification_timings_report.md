@@ -11,10 +11,12 @@
 | :--- | :--- | :--- | :--- | :--- |
 | **08:17 AM** | `project99-repo` | `morning.yml` | **Vocabulary Email (Morning Dossier)** — ⚡ **Weekdays only.** AI generates 3 new GRE/CAT-level words with definitions, example sentences, and mnemonics. Saves words to a JSON database on GitHub. No new words on weekends — weekends are quiz-only. | 📧 Email only |
 | **08:43 AM** | `cat_qa_engine` | `math_sprint.yml` | **Morning Math Sprint (Telegram)** — Sends 7 quick math questions as interactive Telegram buttons. Questions are picked based on your weak areas — if you got yesterday's problem wrong, it drills that category harder. Includes new categories: percent-to-fraction, approximate roots, fraction comparison, and successive percentages. | 📱 Telegram only |
+| **09:00 AM** | `rc-practice-repo` | `rc_practice.yml` | **Reading Comprehension Practice** — Fetches a real essay (Aeon, Nautilus, etc.), builds a CAT-style RC prompt, emails it with a one-click link to paste into Gemini for AI-graded practice. | 📱 Telegram + 📧 Email |
 
 > **Cron details:**
 > - `morning.yml` → `47 2 * * 1-5` (02:47 UTC = 8:17 AM IST weekdays only)
 > - `math_sprint.yml` → `13 3 * * *` (03:13 UTC = 8:43 AM IST daily)
+> - `rc_practice.yml` → `30 3 * * *` (03:30 UTC = 9:00 AM IST daily)
 
 ---
 
@@ -35,32 +37,28 @@
 ---
 
 ## 🏢 Mid-Day Block (1:00 – 2:30 PM)
-> Deep work window (10:30 AM → 1 PM) is protected.
+> Deep work window (11:00 AM → 1 PM) is protected.
 
 | Time (IST) | Repo | Workflow | What It Does | Delivery |
 | :--- | :--- | :--- | :--- | :--- |
 | **01:13 PM** | `wingman-repo` | `wingman.yml` | **Future Self Motivation (Single Daily Hit)** — AI pretends to be "You from 2027" who made it to IIM. Picks a vivid IIM life scenario (romance, placements, hostel nights, etc.) and writes a short, punchy Hinglish message. | 📱 Telegram + 📧 Email |
-| **02:19 PM** | `project99-repo` | `afternoon.yml` | **Vocabulary Quiz (Telegram Polls + Email)** — Takes today's 3 morning words + 1 random old word ("cold case"), generates CAT-style MCQ for each, sends as interactive Telegram quizzes and formatted HTML email with answers. | 📱 Telegram + 📧 Email |
 | **02:30 PM** | `cat_qa_engine` | `daily_problem.yml` | **Spot the Flaw Challenge (Telegram Poll)** — Shows a math problem with a step-by-step solution where ONE step has a hidden logical error. You vote on which step is wrong. If there are more than 10 steps, Gemini AI condenses them. | 📱 Telegram only |
 
 > **Cron details:**
 > - `wingman.yml` → `43 7 * * *` (07:43 UTC = 1:13 PM IST daily)
-> - `afternoon.yml` → `49 8 * * *` (08:49 UTC = 2:19 PM IST daily)
 > - `daily_problem.yml` → `0 9 * * *` (09:00 UTC = 2:30 PM IST daily)
 
 ---
 
 ## 🌆 Afternoon Block (5:00 PM)
-> RC Practice runs daily. Charisma drill moved to 11 AM on Mon/Wed.
+> Vocabulary Quiz runs daily at 5 PM — tests retention of the morning’s words.
 
-| Time (IST) | Days | Repo | Workflow | What It Does | Delivery |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| **05:00 PM** | **Daily** | `rc-practice-repo` | `rc_practice.yml` | **Reading Comprehension Practice** — Fetches a real essay (Aeon, Nautilus, etc.), builds a CAT-style RC prompt, emails it with a one-click link to paste into Gemini for AI-graded practice. | 📱 Telegram + 📧 Email |
+| Time (IST) | Repo | Workflow | What It Does | Delivery |
+| :--- | :--- | :--- | :--- | :--- |
+| **05:00 PM** | `project99-repo` | `afternoon.yml` | **Vocabulary Quiz (Telegram Polls + Email)** — Takes today's 3 morning words + 1 random old word ("cold case"), generates CAT-style MCQ for each, sends as interactive Telegram quizzes and formatted HTML email with answers. | 📱 Telegram + 📧 Email |
 
 > **Cron details:**
-> - `rc_practice.yml` → `30 11 * * *` (11:30 UTC = 5:00 PM IST daily)
-
-> **Note:** Charisma Speaking Drill now runs at **11:00 AM** on Mon & Wed (see Mid-Morning Block below).
+> - `afternoon.yml` → `30 11 * * *` (11:30 UTC = 5:00 PM IST daily)
 
 ---
 
@@ -126,13 +124,13 @@ In addition to the daily schedule above, weekends also get:
 ```
 08:17 AM  📧  Vocabulary Email (project99-repo)
 08:43 AM  📱  Morning Math Sprint — 7 Qs (cat_qa_engine)
+09:00 AM  📱📧 RC Practice (rc-practice-repo)
 10:00 AM  📱📧 Object Naming Drill (verbal_drill)
 10:14 AM  📱📧 Word Construction Drill (verbal_drill)
 11:00 AM  📱📧 Charisma Drill [Mon & Wed only] (charisma-repo)
 01:13 PM  📱📧 Future Self Motivation (wingman-repo)
-02:19 PM  📱📧 Vocabulary Quiz (project99-repo)
 02:30 PM  📱  Spot the Flaw (cat_qa_engine)
-05:00 PM  📱📧 RC Practice (rc-practice-repo)
+05:00 PM  📱📧 Vocabulary Quiz (project99-repo)
 07:30 PM  📱  Evening Math Sprint — 7 Qs (cat_qa_engine)
 09:49 PM  📱  Nightly Axiom (cat_qa_engine)
 10:13 PM  📱  Graveyard Nudge (cat_qa_engine)
@@ -147,11 +145,12 @@ In addition to the daily schedule above, weekends also get:
 
 ```
 08:43 AM  📱  Morning Math Sprint — 7 Qs (cat_qa_engine)
+09:00 AM  📱📧 RC Practice (rc-practice-repo)
 10:00 AM  📱📧 Object Naming Drill (verbal_drill)
 10:14 AM  📱📧 Word Construction Drill (verbal_drill)
 12:00 PM  📱📧 Weekend Vocab Quiz — Round 1 (project99-repo)
 02:30 PM  📱  Spot the Flaw (cat_qa_engine)
-05:00 PM  📱📧 RC Practice (rc-practice-repo)
+05:00 PM  📱📧 Vocabulary Quiz (project99-repo)
 07:30 PM  📱  Evening Math Sprint — 7 Qs (cat_qa_engine)
 08:00 PM  📱📧 Weekend Vocab Quiz — Round 2 (project99-repo)
 08:30 PM  📱  Weekly Report Card [Sundays only] (cat_qa_engine)
@@ -160,8 +159,8 @@ In addition to the daily schedule above, weekends also get:
 ```
 
 **Total weekend notifications:**
-- Saturdays: 10
-- Sundays: 11 (includes Weekly Report)
+- Saturdays: 11
+- Sundays: 12 (includes Weekly Report)
 
 ---
 
