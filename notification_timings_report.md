@@ -32,21 +32,19 @@
 
 ---
 
-## 🏢 Mid-Day Block (12:00 – 2:30 PM)
-> The daily problem moved here from the evening. Deep work window (10:30 AM → 12 PM) is protected.
+## 🏢 Mid-Day Block (1:00 – 2:30 PM)
+> Deep work window (10:30 AM → 1 PM) is protected.
 
 | Time (IST) | Repo | Workflow | What It Does | Delivery |
 | :--- | :--- | :--- | :--- | :--- |
-| **12:00 PM** | `cat_qa_engine` | `daily_problem.yml` | **Spot the Flaw Challenge (Telegram Poll)** — Shows a math problem with a step-by-step solution where ONE step has a hidden logical error. You vote on which step is wrong. If there are more than 10 steps, Gemini AI condenses them. | 📱 Telegram only |
 | **01:13 PM** | `wingman-repo` | `wingman.yml` | **Future Self Motivation (Single Daily Hit)** — AI pretends to be "You from 2027" who made it to IIM. Picks a vivid IIM life scenario (romance, placements, hostel nights, etc.) and writes a short, punchy Hinglish message. | 📱 Telegram + 📧 Email |
 | **02:19 PM** | `project99-repo` | `afternoon.yml` | **Vocabulary Quiz (Telegram Polls + Email)** — Takes today's 3 morning words + 1 random old word ("cold case"), generates CAT-style MCQ for each, sends as interactive Telegram quizzes and formatted HTML email with answers. | 📱 Telegram + 📧 Email |
-| **02:30 PM** | `cat_qa_engine` | `math_sprint_afternoon.yml` | **Afternoon Math Sprint (Telegram)** — Same format as the morning sprint: 7 quick math questions with weak-area targeting and interactive buttons. Second session of the day. | 📱 Telegram only |
+| **02:30 PM** | `cat_qa_engine` | `daily_problem.yml` | **Spot the Flaw Challenge (Telegram Poll)** — Shows a math problem with a step-by-step solution where ONE step has a hidden logical error. You vote on which step is wrong. If there are more than 10 steps, Gemini AI condenses them. | 📱 Telegram only |
 
 > **Cron details:**
-> - `daily_problem.yml` → `30 6 * * *` (06:30 UTC = 12:00 PM IST daily)
 > - `wingman.yml` → `43 7 * * *` (07:43 UTC = 1:13 PM IST daily)
 > - `afternoon.yml` → `49 8 * * *` (08:49 UTC = 2:19 PM IST daily)
-> - `math_sprint_afternoon.yml` → `0 9 * * *` (09:00 UTC = 2:30 PM IST daily)
+> - `daily_problem.yml` → `0 9 * * *` (09:00 UTC = 2:30 PM IST daily)
 
 ---
 
@@ -112,7 +110,7 @@ In addition to the daily schedule above, weekends also get:
 
 | Repo | What It Does (Big Picture) | Notifications/Day |
 | :--- | :--- | :--- |
-| `cat_qa_engine` | CAT math — 3× daily sprints (7 Qs each), flaw detection, axioms, graveyard, weekly report | 6/day + 1 Sunday report |
+| `cat_qa_engine` | CAT math — 2× daily sprints (7 Qs each), flaw detection, axioms, graveyard, weekly report | 5/day + 1 Sunday report |
 | `charisma-repo` | Speaking/charisma exercise | 2/week (Mon & Wed) at 6:47 PM |
 | `project99-repo` | Vocabulary — learn 3 new words mornings, get quizzed afternoons | 2/weekday, 4/weekend day |
 | `rc-practice-repo` | Reading Comprehension with real essays | 1/day |
@@ -128,10 +126,9 @@ In addition to the daily schedule above, weekends also get:
 08:43 AM  📱  Morning Math Sprint — 7 Qs (cat_qa_engine)
 10:00 AM  📱📧 Object Naming Drill (verbal_drill)
 10:14 AM  📱📧 Word Construction Drill (verbal_drill)
-12:00 PM  📱  Spot the Flaw (cat_qa_engine)
 01:13 PM  📱📧 Future Self Motivation (wingman-repo)
 02:19 PM  📱📧 Vocabulary Quiz (project99-repo)
-02:30 PM  📱  Afternoon Math Sprint — 7 Qs (cat_qa_engine)
+02:30 PM  📱  Spot the Flaw (cat_qa_engine)
 06:47 PM  📱📧 Charisma Drill [Mon & Wed only] (charisma-repo)
 06:51 PM  📱📧 RC Practice (rc-practice-repo)
 07:30 PM  📱  Evening Math Sprint — 7 Qs (cat_qa_engine)
@@ -139,8 +136,8 @@ In addition to the daily schedule above, weekends also get:
 10:13 PM  📱  Graveyard Nudge (cat_qa_engine)
 ```
 
-**Total weekday notifications:** 12 (+ Charisma on Mon/Wed = 13)
-**Total weekend notifications:** 14 (+ Weekly Report on Sunday = 15)
+**Total weekday notifications:** 11 (+ Charisma on Mon/Wed = 12)
+**Total weekend notifications:** 10 (+ Weekly Report on Sunday = 11)
 
 ---
 
@@ -150,9 +147,8 @@ In addition to the daily schedule above, weekends also get:
 08:43 AM  📱  Morning Math Sprint — 7 Qs (cat_qa_engine)
 10:00 AM  📱📧 Object Naming Drill (verbal_drill)
 10:14 AM  📱📧 Word Construction Drill (verbal_drill)
-12:00 PM  📱  Spot the Flaw (cat_qa_engine)
 12:00 PM  📱📧 Weekend Vocab Quiz — Round 1 (project99-repo)
-02:30 PM  📱  Afternoon Math Sprint — 7 Qs (cat_qa_engine)
+02:30 PM  📱  Spot the Flaw (cat_qa_engine)
 06:51 PM  📱📧 RC Practice (rc-practice-repo)
 07:30 PM  📱  Evening Math Sprint — 7 Qs (cat_qa_engine)
 08:00 PM  📱📧 Weekend Vocab Quiz — Round 2 (project99-repo)
@@ -162,8 +158,8 @@ In addition to the daily schedule above, weekends also get:
 ```
 
 **Total weekend notifications:**
-- Saturdays: 11
-- Sundays: 12 (includes Weekly Report)
+- Saturdays: 10
+- Sundays: 11 (includes Weekly Report)
 
 ---
 
@@ -171,12 +167,12 @@ In addition to the daily schedule above, weekends also get:
 
 | Change | Old | New |
 | :--- | :--- | :--- |
-| Spot the Flaw timing | 8:07 PM (evening) | **12:00 PM** (mid-day) |
+| Spot the Flaw timing | 8:07 PM (evening) | **2:30 PM** (mid-day) |
 | Verbal Drills timing | 5:33 & 5:47 PM | **10:00 & 10:14 AM** |
-| Math Sprint frequency | 1× daily (morning only) | **3× daily** (morning, afternoon, evening) |
+| Math Sprint frequency | 1× daily (morning only) | **2× daily** (morning + evening) |
 | Math Sprint question count | 5 questions per sprint | **7 questions** per sprint |
-| New workflow: `math_sprint_afternoon.yml` | — | **2:30 PM** IST daily |
+| Deleted workflow: `math_sprint_afternoon.yml` | 2:30 PM IST daily | Replaced by Spot the Flaw |
 | New workflow: `math_sprint_evening.yml` | — | **7:30 PM** IST daily |
 | New sprint categories | — | `pct_to_fraction`, `approx_root`, `fraction_compare`, `successive_pct` |
 | Axiom format | Plain text | **Cognitive Anchor** (Core Rule + Mental Model + Anchor Question) |
-| Total daily cat_qa_engine notifications | 4/day | **6/day** |
+| Total daily cat_qa_engine notifications | 4/day | **5/day** |
