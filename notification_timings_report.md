@@ -62,15 +62,17 @@
 
 ---
 
-## 🌙 Evening Block (7:30 PM)
-> Second math sprint session of the day.
+## 🌙 Evening Block (7:30 – 8:00 PM)
+> Math sprint and a second Spot the Flaw to close the study session.
 
 | Time (IST) | Repo | Workflow | What It Does | Delivery |
 | :--- | :--- | :--- | :--- | :--- |
 | **07:30 PM** | `cat_qa_engine` | `math_sprint_evening.yml` | **Evening Math Sprint (Telegram)** — Second and final sprint session of the day. Same format: 7 quick math questions with weak-area targeting and interactive buttons. | 📱 Telegram only |
+| **08:00 PM** | `cat_qa_engine` | `daily_problem_evening.yml` | **Spot the Flaw — Evening Round (Telegram Poll)** — Second Spot the Flaw of the day. Same format: a math problem with one hidden logical error in the step-by-step solution. | 📱 Telegram only |
 
 > **Cron details:**
 > - `math_sprint_evening.yml` → `0 14 * * *` (14:00 UTC = 7:30 PM IST daily)
+> - `daily_problem_evening.yml` → `30 14 * * *` (14:30 UTC = 8:00 PM IST daily)
 
 ---
 
@@ -110,7 +112,7 @@ In addition to the daily schedule above, weekends also get:
 
 | Repo | What It Does (Big Picture) | Notifications/Day |
 | :--- | :--- | :--- |
-| `cat_qa_engine` | CAT math — 2× daily sprints (7 Qs each), flaw detection, axioms, graveyard, weekly report | 5/day + 1 Sunday report |
+| `cat_qa_engine` | CAT math — 2× daily sprints (7 Qs each), 2× flaw detection, axioms, graveyard, weekly report | 6/day + 1 Sunday report |
 | `charisma-repo` | Speaking/charisma exercise | 2/week (Mon & Wed) at 11:00 AM |
 | `project99-repo` | Vocabulary — learn 3 new words mornings, get quizzed afternoons | 2/weekday, 4/weekend day |
 | `rc-practice-repo` | Reading Comprehension with real essays | 1/day |
@@ -132,12 +134,13 @@ In addition to the daily schedule above, weekends also get:
 02:30 PM  📱  Spot the Flaw (cat_qa_engine)
 05:00 PM  📱📧 Vocabulary Quiz (project99-repo)
 07:30 PM  📱  Evening Math Sprint — 7 Qs (cat_qa_engine)
+08:00 PM  📱  Spot the Flaw — Evening (cat_qa_engine)
 09:49 PM  📱  Nightly Axiom (cat_qa_engine)
 10:13 PM  📱  Graveyard Nudge (cat_qa_engine)
 ```
 
-**Total weekday notifications:** 11 (+ Charisma on Mon/Wed = 12)
-**Total weekend notifications:** 10 (+ Weekly Report on Sunday = 11)
+**Total weekday notifications:** 12 (+ Charisma on Mon/Wed = 13)
+**Total weekend notifications:** 12 (+ Weekly Report on Sunday = 13)
 
 ---
 
@@ -152,6 +155,7 @@ In addition to the daily schedule above, weekends also get:
 02:30 PM  📱  Spot the Flaw (cat_qa_engine)
 05:00 PM  📱📧 Vocabulary Quiz (project99-repo)
 07:30 PM  📱  Evening Math Sprint — 7 Qs (cat_qa_engine)
+08:00 PM  📱  Spot the Flaw — Evening (cat_qa_engine)
 08:00 PM  📱📧 Weekend Vocab Quiz — Round 2 (project99-repo)
 08:30 PM  📱  Weekly Report Card [Sundays only] (cat_qa_engine)
 09:49 PM  📱  Nightly Axiom (cat_qa_engine)
@@ -159,8 +163,8 @@ In addition to the daily schedule above, weekends also get:
 ```
 
 **Total weekend notifications:**
-- Saturdays: 11
-- Sundays: 12 (includes Weekly Report)
+- Saturdays: 12
+- Sundays: 13 (includes Weekly Report)
 
 ---
 
