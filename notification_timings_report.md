@@ -18,17 +18,19 @@
 
 ---
 
-## ☕ Mid-Morning Block (10:00 – 10:30 AM)
-> Both verbal drills run daily, spaced 14 minutes apart to prevent task-fatigue. 
+## ☕ Mid-Morning Block (10:00 – 11:00 AM)
+> Verbal drills run daily, spaced 14 minutes apart. Charisma drill runs Mon/Wed at 11 AM.
 
 | Time (IST) | Days | Repo | Workflow | What It Does | Delivery |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **10:00 AM** | **Daily** | `verbal_drill` | `object_naming.yml` | **Object Naming Drill** — Picks 5 random objects from a 300+ word bank (tracks history to avoid repeats, resets when exhausted) and asks you to write 2 alternate names (aliases) for each. | 📱 Telegram + 📧 Email |
 | **10:14 AM** | **Daily** | `verbal_drill` | `daily_grind.yml` | **Word Construction Drill** — Random task like "Write 4 words starting with 'K'" or "Write 6 words that are exactly 3 letters long." | 📱 Telegram + 📧 Email |
+| **11:00 AM** | **Mon & Wed** | `charisma-repo` | `charisma.yml` | **Charisma Speaking Drill** — AI picks a random funny scenario and gives you a 5-minute verbal exercise. 3 types: Spin Doctor (reframing), Genre Mashup (explain tech in a genre), Shark Tank (sell useless objects). | 📱 Telegram + 📧 Email |
 
 > **Cron details:**
 > - `object_naming.yml` → `30 4 * * *` (04:30 UTC = 10:00 AM IST daily)
 > - `daily_grind.yml` → `44 4 * * *` (04:44 UTC = 10:14 AM IST daily)
+> - `charisma.yml` → `30 5 * * 1,3` (05:30 UTC = 11:00 AM IST Mon & Wed)
 
 ---
 
@@ -48,17 +50,17 @@
 
 ---
 
-## 🌆 Late Afternoon Block (6:30 – 7:00 PM)
-> Charisma is kept to Mon/Wed and shifted later so you can speak out loud while commuting.
+## 🌆 Afternoon Block (5:00 PM)
+> RC Practice runs daily. Charisma drill moved to 11 AM on Mon/Wed.
 
 | Time (IST) | Days | Repo | Workflow | What It Does | Delivery |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **06:47 PM** | **Mon & Wed** | `charisma-repo` | `charisma.yml` | **Charisma Speaking Drill** — AI picks a random funny scenario and gives you a 5-minute verbal exercise. 3 types: Spin Doctor (reframing), Genre Mashup (explain tech in a genre), Shark Tank (sell useless objects). | 📱 Telegram + 📧 Email |
-| **06:51 PM** | **Daily** | `rc-practice-repo` | `rc_practice.yml` | **Reading Comprehension Practice** — Fetches a real essay (Aeon, Nautilus, etc.), builds a CAT-style RC prompt, emails it with a one-click link to paste into Gemini for AI-graded practice. | 📱 Telegram + 📧 Email |
+| **05:00 PM** | **Daily** | `rc-practice-repo` | `rc_practice.yml` | **Reading Comprehension Practice** — Fetches a real essay (Aeon, Nautilus, etc.), builds a CAT-style RC prompt, emails it with a one-click link to paste into Gemini for AI-graded practice. | 📱 Telegram + 📧 Email |
 
 > **Cron details:**
-> - `charisma.yml` → `17 13 * * 1,3` (13:17 UTC = 6:47 PM IST Mon & Wed)
-> - `rc_practice.yml` → `21 13 * * *` (13:21 UTC = 6:51 PM IST daily)
+> - `rc_practice.yml` → `30 11 * * *` (11:30 UTC = 5:00 PM IST daily)
+
+> **Note:** Charisma Speaking Drill now runs at **11:00 AM** on Mon & Wed (see Mid-Morning Block below).
 
 ---
 
@@ -126,11 +128,11 @@ In addition to the daily schedule above, weekends also get:
 08:43 AM  📱  Morning Math Sprint — 7 Qs (cat_qa_engine)
 10:00 AM  📱📧 Object Naming Drill (verbal_drill)
 10:14 AM  📱📧 Word Construction Drill (verbal_drill)
+11:00 AM  📱📧 Charisma Drill [Mon & Wed only] (charisma-repo)
 01:13 PM  📱📧 Future Self Motivation (wingman-repo)
 02:19 PM  📱📧 Vocabulary Quiz (project99-repo)
 02:30 PM  📱  Spot the Flaw (cat_qa_engine)
-06:47 PM  📱📧 Charisma Drill [Mon & Wed only] (charisma-repo)
-06:51 PM  📱📧 RC Practice (rc-practice-repo)
+05:00 PM  📱📧 RC Practice (rc-practice-repo)
 07:30 PM  📱  Evening Math Sprint — 7 Qs (cat_qa_engine)
 09:49 PM  📱  Nightly Axiom (cat_qa_engine)
 10:13 PM  📱  Graveyard Nudge (cat_qa_engine)
@@ -149,7 +151,7 @@ In addition to the daily schedule above, weekends also get:
 10:14 AM  📱📧 Word Construction Drill (verbal_drill)
 12:00 PM  📱📧 Weekend Vocab Quiz — Round 1 (project99-repo)
 02:30 PM  📱  Spot the Flaw (cat_qa_engine)
-06:51 PM  📱📧 RC Practice (rc-practice-repo)
+05:00 PM  📱📧 RC Practice (rc-practice-repo)
 07:30 PM  📱  Evening Math Sprint — 7 Qs (cat_qa_engine)
 08:00 PM  📱📧 Weekend Vocab Quiz — Round 2 (project99-repo)
 08:30 PM  📱  Weekly Report Card [Sundays only] (cat_qa_engine)
