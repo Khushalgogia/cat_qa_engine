@@ -18,8 +18,22 @@
 
 ---
 
+## ☕ Mid-Morning Block (10:00 – 10:30 AM)
+> Both verbal drills run daily, spaced 14 minutes apart to prevent task-fatigue. 
+
+| Time (IST) | Days | Repo | Workflow | What It Does | Delivery |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **10:00 AM** | **Daily** | `verbal_drill` | `object_naming.yml` | **Object Naming Drill** — Picks 5 random objects from a 300+ word bank (tracks history to avoid repeats, resets when exhausted) and asks you to write 2 alternate names (aliases) for each. | 📱 Telegram + 📧 Email |
+| **10:14 AM** | **Daily** | `verbal_drill` | `daily_grind.yml` | **Word Construction Drill** — Random task like "Write 4 words starting with 'K'" or "Write 6 words that are exactly 3 letters long." | 📱 Telegram + 📧 Email |
+
+> **Cron details:**
+> - `object_naming.yml` → `30 4 * * *` (04:30 UTC = 10:00 AM IST daily)
+> - `daily_grind.yml` → `44 4 * * *` (04:44 UTC = 10:14 AM IST daily)
+
+---
+
 ## 🏢 Mid-Day Block (12:00 – 2:30 PM)
-> The daily problem moved here from the evening. Deep work window (10 AM → 12 PM) is protected.
+> The daily problem moved here from the evening. Deep work window (10:30 AM → 12 PM) is protected.
 
 | Time (IST) | Repo | Workflow | What It Does | Delivery |
 | :--- | :--- | :--- | :--- | :--- |
@@ -36,19 +50,15 @@
 
 ---
 
-## 🌆 Late Afternoon Block (5:30 – 7:00 PM)
-> Both verbal drills run daily, spaced 14 minutes apart to prevent task-fatigue. Charisma is kept to Mon/Wed and shifted later so you can speak out loud while commuting.
+## 🌆 Late Afternoon Block (6:30 – 7:00 PM)
+> Charisma is kept to Mon/Wed and shifted later so you can speak out loud while commuting.
 
 | Time (IST) | Days | Repo | Workflow | What It Does | Delivery |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **05:33 PM** | **Daily** | `verbal_drill` | `object_naming.yml` | **Object Naming Drill** — Picks 5 random objects from a 300+ word bank (tracks history to avoid repeats, resets when exhausted) and asks you to write 2 alternate names (aliases) for each. | 📱 Telegram + 📧 Email |
-| **05:47 PM** | **Daily** | `verbal_drill` | `daily_grind.yml` | **Word Construction Drill** — Random task like "Write 4 words starting with 'K'" or "Write 6 words that are exactly 3 letters long." | 📱 Telegram + 📧 Email |
 | **06:47 PM** | **Mon & Wed** | `charisma-repo` | `charisma.yml` | **Charisma Speaking Drill** — AI picks a random funny scenario and gives you a 5-minute verbal exercise. 3 types: Spin Doctor (reframing), Genre Mashup (explain tech in a genre), Shark Tank (sell useless objects). | 📱 Telegram + 📧 Email |
 | **06:51 PM** | **Daily** | `rc-practice-repo` | `rc_practice.yml` | **Reading Comprehension Practice** — Fetches a real essay (Aeon, Nautilus, etc.), builds a CAT-style RC prompt, emails it with a one-click link to paste into Gemini for AI-graded practice. | 📱 Telegram + 📧 Email |
 
 > **Cron details:**
-> - `object_naming.yml` → `3 12 * * *` (12:03 UTC = 5:33 PM IST daily)
-> - `daily_grind.yml` → `17 12 * * *` (12:17 UTC = 5:47 PM IST daily)
 > - `charisma.yml` → `17 13 * * 1,3` (13:17 UTC = 6:47 PM IST Mon & Wed)
 > - `rc_practice.yml` → `21 13 * * *` (13:21 UTC = 6:51 PM IST daily)
 
@@ -116,12 +126,12 @@ In addition to the daily schedule above, weekends also get:
 ```
 08:17 AM  📧  Vocabulary Email (project99-repo)
 08:43 AM  📱  Morning Math Sprint — 7 Qs (cat_qa_engine)
+10:00 AM  📱📧 Object Naming Drill (verbal_drill)
+10:14 AM  📱📧 Word Construction Drill (verbal_drill)
 12:00 PM  📱  Spot the Flaw (cat_qa_engine)
 01:13 PM  📱📧 Future Self Motivation (wingman-repo)
 02:19 PM  📱📧 Vocabulary Quiz (project99-repo)
 02:30 PM  📱  Afternoon Math Sprint — 7 Qs (cat_qa_engine)
-05:33 PM  📱📧 Object Naming Drill (verbal_drill)
-05:47 PM  📱📧 Word Construction Drill (verbal_drill)
 06:47 PM  📱📧 Charisma Drill [Mon & Wed only] (charisma-repo)
 06:51 PM  📱📧 RC Practice (rc-practice-repo)
 07:30 PM  📱  Evening Math Sprint — 7 Qs (cat_qa_engine)
@@ -138,11 +148,11 @@ In addition to the daily schedule above, weekends also get:
 
 ```
 08:43 AM  📱  Morning Math Sprint — 7 Qs (cat_qa_engine)
+10:00 AM  📱📧 Object Naming Drill (verbal_drill)
+10:14 AM  📱📧 Word Construction Drill (verbal_drill)
 12:00 PM  📱  Spot the Flaw (cat_qa_engine)
 12:00 PM  📱📧 Weekend Vocab Quiz — Round 1 (project99-repo)
 02:30 PM  📱  Afternoon Math Sprint — 7 Qs (cat_qa_engine)
-05:33 PM  📱📧 Object Naming Drill (verbal_drill)
-05:47 PM  📱📧 Word Construction Drill (verbal_drill)
 06:51 PM  📱📧 RC Practice (rc-practice-repo)
 07:30 PM  📱  Evening Math Sprint — 7 Qs (cat_qa_engine)
 08:00 PM  📱📧 Weekend Vocab Quiz — Round 2 (project99-repo)
@@ -162,6 +172,7 @@ In addition to the daily schedule above, weekends also get:
 | Change | Old | New |
 | :--- | :--- | :--- |
 | Spot the Flaw timing | 8:07 PM (evening) | **12:00 PM** (mid-day) |
+| Verbal Drills timing | 5:33 & 5:47 PM | **10:00 & 10:14 AM** |
 | Math Sprint frequency | 1× daily (morning only) | **3× daily** (morning, afternoon, evening) |
 | Math Sprint question count | 5 questions per sprint | **7 questions** per sprint |
 | New workflow: `math_sprint_afternoon.yml` | — | **2:30 PM** IST daily |
