@@ -1,6 +1,7 @@
 import os
 import json
 import sys
+import time
 from google import genai
 from supabase import create_client
 from dotenv import load_dotenv
@@ -118,6 +119,7 @@ def process_transcript(filepath):
 
     saved = 0
     skipped = 0
+    recovered = 0
 
     for i, item in enumerate(sanitized):
         print(f"\n--- CALL 3: Corrupting problem {i+1}/{len(sanitized)} ---")
@@ -152,7 +154,7 @@ def process_transcript(filepath):
             skipped += 1
             continue
 
-        supabase.table("qa_flaw_deck").insert({
+        record = {
             "source_file": transcript_name,
             "original_problem": item["problem_statement"],
             "solution_steps": corruption["corrupted_steps"],
@@ -161,12 +163,43 @@ def process_transcript(filepath):
             "trap_axiom": corruption["trap_axiom"],
             "error_category": corruption["error_category"],
             "status": "unseen"
-        }).execute()
+        }
 
-        saved += 1
-        print("Saved.")
+        max_retries = 5
+        pushed = False
+        for attempt in range(max_retries):
+            try:
+                supabase.table("qa_flaw_deck").insert(record).execute()
+                pushed = True
+                break
+            except Exception as e:
+                wait = 2 ** attempt * 5  # 5s, 10s, 20s, 40s, 80s
+                print(f"  ⚠️ DB push failed (attempt {attempt+1}/{max_retries}): {str(e)[:80]}")
+                if attempt < max_retries - 1:
+                    print(f"  ⏳ Retrying in {wait}s...")
+                    time.sleep(wait)
 
-    print(f"\nDone. {saved} saved, {skipped} skipped from {transcript_name}.")
+        if pushed:
+            saved += 1
+            print("  ✅ Saved to database.")
+        else:
+            # Save to recovery file so nothing is lost
+            recovery_path = os.path.join(os.path.dirname(filepath), "recovery_records.json")
+            existing = []
+            if os.path.exists(recovery_path):
+                with open(recovery_path, 'r') as rf:
+                    existing = json.load(rf)
+            existing.append(record)
+            with open(recovery_path, 'w') as rf:
+                json.dump(existing, rf, indent=2)
+            recovered += 1
+            print(f"  💾 All retries failed. Record saved to {recovery_path}")
+            print(f"     Run: python scripts/push_recovery.py {recovery_path}")
+
+    print(f"\nDone. {saved} saved, {skipped} skipped", end="")
+    if recovered > 0:
+        print(f", {recovered} saved to recovery file", end="")
+    print(f" from {transcript_name}.")
 
 if __name__ == "__main__":
     process_transcript(sys.argv[1])
