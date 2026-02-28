@@ -206,10 +206,26 @@ async def deliver():
 
     # ── Session cleanup: delete sessions older than 7 days ──
     cutoff = (datetime.now() - timedelta(days=7)).isoformat()
-    supabase.table("sprint_sessions")\
-        .delete()\
+
+    # First find old session IDs
+    old_sessions = supabase.table("sprint_sessions")\
+        .select("id")\
         .lt("created_at", cutoff)\
         .execute()
+
+    if old_sessions.data:
+        old_ids = [s["id"] for s in old_sessions.data]
+        # Delete child sprint_logs first (FK constraint)
+        for sid in old_ids:
+            supabase.table("sprint_logs")\
+                .delete()\
+                .eq("session_id", sid)\
+                .execute()
+        # Then delete the sessions
+        supabase.table("sprint_sessions")\
+            .delete()\
+            .lt("created_at", cutoff)\
+            .execute()
 
     print(f"Sprint delivered. Session: {session_id}")
     print(f"Questions: {len(questions)} ({', '.join(q['category'] for q in questions)})")

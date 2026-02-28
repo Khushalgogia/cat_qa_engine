@@ -153,17 +153,34 @@ async def deliver():
     )
 
     # Send message (split if > 4096 chars)
-    if len(full_message) <= 4096:
-        await bot.send_message(chat_id=chat_id, text=full_message, parse_mode="Markdown")
-    else:
-        # First chunk: header + problem
-        msg1 = f"{header}*Problem:*\n{problem['original_problem']}"
-        await bot.send_message(chat_id=chat_id, text=msg1[:4096], parse_mode="Markdown")
-        # Second chunk: steps + explanation
-        msg2 = f"*Steps:*\n{formatted_steps}\n\n*Explanation:*\n{full_explanation}"
-        while msg2:
-            await bot.send_message(chat_id=chat_id, text=msg2[:4096], parse_mode="Markdown")
-            msg2 = msg2[4096:]
+    try:
+        if len(full_message) <= 4096:
+            await bot.send_message(chat_id=chat_id, text=full_message, parse_mode="Markdown")
+        else:
+            msg1 = f"{header}*Problem:*\n{problem['original_problem']}"
+            await bot.send_message(chat_id=chat_id, text=msg1[:4096], parse_mode="Markdown")
+            msg2 = f"*Steps:*\n{formatted_steps}\n\n*Explanation:*\n{full_explanation}"
+            while msg2:
+                await bot.send_message(chat_id=chat_id, text=msg2[:4096], parse_mode="Markdown")
+                msg2 = msg2[4096:]
+    except Exception as e:
+        print(f"  ⚠️ Markdown send failed ({e}), retrying as plain text...")
+        # Strip Markdown formatting and resend as plain text
+        plain_header = header.replace("*", "")
+        plain_message = (
+            f"{plain_header}Problem:\n{problem['original_problem']}\n\n"
+            f"Steps:\n{formatted_steps}\n\n"
+            f"Explanation:\n{full_explanation}"
+        )
+        if len(plain_message) <= 4096:
+            await bot.send_message(chat_id=chat_id, text=plain_message)
+        else:
+            msg1 = f"{plain_header}Problem:\n{problem['original_problem']}"
+            await bot.send_message(chat_id=chat_id, text=msg1[:4096])
+            msg2 = f"Steps:\n{formatted_steps}\n\nExplanation:\n{full_explanation}"
+            while msg2:
+                await bot.send_message(chat_id=chat_id, text=msg2[:4096])
+                msg2 = msg2[4096:]
 
     # Build poll options: "Step X: [preview...]" — each guaranteed ≤ 100 chars
     poll_options = []
