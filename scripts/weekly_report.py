@@ -70,6 +70,11 @@ async def report():
     except Exception:
         pass  # Sprint tables may not exist yet
 
-    await bot.send_message(chat_id=chat_id, text=msg, parse_mode="Markdown")
+    try:
+        await bot.send_message(chat_id=chat_id, text=msg, parse_mode="Markdown")
+    except Exception as e:
+        print(f"  ⚠️ Markdown send failed ({e}), retrying as plain text...")
+        plain_msg = msg.replace("*", "")
+        await bot.send_message(chat_id=chat_id, text=plain_msg)
 
 asyncio.run(report())

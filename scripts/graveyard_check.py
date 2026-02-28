@@ -36,12 +36,21 @@ async def graveyard_nudge():
         InlineKeyboardButton("❌ Still Foggy", callback_data=f"gy|{problem['id']}|foggy")
     ]])
 
-    await bot.send_message(
-        chat_id=chat_id,
-        text=message,
-        parse_mode="Markdown",
-        reply_markup=keyboard
-    )
+    try:
+        await bot.send_message(
+            chat_id=chat_id,
+            text=message,
+            parse_mode="Markdown",
+            reply_markup=keyboard
+        )
+    except Exception as e:
+        print(f"  ⚠️ Markdown send failed ({e}), retrying as plain text...")
+        plain_message = message.replace("*", "")
+        await bot.send_message(
+            chat_id=chat_id,
+            text=plain_message,
+            reply_markup=keyboard
+        )
 
     print(f"Graveyard nudge sent: {problem['id'][:8]}... ({problem['error_category']})")
 

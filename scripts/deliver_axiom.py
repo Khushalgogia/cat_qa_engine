@@ -80,11 +80,17 @@ async def deliver_axiom():
 
     text = _format_axiom(axiom, framing)
 
-    await bot.send_message(
-        chat_id=chat_id,
-        text=text,
-        parse_mode="Markdown"
-    )
+    try:
+        await bot.send_message(
+            chat_id=chat_id,
+            text=text,
+            parse_mode="Markdown"
+        )
+    except Exception as e:
+        print(f"  ⚠️ Markdown send failed ({e}), retrying as plain text...")
+        plain_text = text.replace("*", "").replace("_", "")
+        await bot.send_message(chat_id=chat_id, text=plain_text)
+
     print(f"Axiom delivered. Framing: {'caught' if 'spotted' in framing else 'missed' if 'caught you' in framing else 'neutral'}")
 
 asyncio.run(deliver_axiom())
