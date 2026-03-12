@@ -1,8 +1,8 @@
-name: Evening Math Sprint
+name: Daily Math Sprint (7:00 PM IST)
 
 on:
   schedule:
-    - cron: '0 14 * * *'   # 7:30 PM IST
+    - cron: '30 13 * * *'   # 7:00 PM IST
   workflow_dispatch:
 
 jobs:

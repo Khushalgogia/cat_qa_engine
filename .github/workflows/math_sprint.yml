@@ -1,8 +1,6 @@
-name: Morning Math Sprint
+name: Math Sprint (Manual Only)
 
 on:
-  schedule:
-    - cron: '13 3 * * *'   # 8:43 AM IST
   workflow_dispatch:
 
 jobs:
