@@ -4,11 +4,15 @@ import asyncio
 import random
 from datetime import datetime, timedelta
 from collections import Counter
+from zoneinfo import ZoneInfo
 from supabase import create_client
 from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 from dotenv import load_dotenv
 
 load_dotenv()
+
+IST = ZoneInfo("Asia/Kolkata")
+FLAW_DAY_STATE_KEY = "flaw_day_state_v1"
 
 supabase = create_client(os.environ["SUPABASE_URL"].strip(), os.environ["SUPABASE_KEY"].strip())
 bot = Bot(token=os.environ["TELEGRAM_TOKEN"].strip())
@@ -38,27 +42,26 @@ def escape_md(text):
         text = text.replace(ch, f'\\{ch}')
     return text
 
-def get_yesterday_miss():
-    """Check if yesterday's 2 PM flaw problem was missed.
-    If so, return the mapped sprint category for guaranteed inclusion."""
-    problem_result = supabase.table("settings")\
+def _get_day_state():
+    result = supabase.table("settings")\
         .select("value")\
-        .eq("key", "todays_problem_id")\
+        .eq("key", FLAW_DAY_STATE_KEY)\
         .execute()
 
-    problem_id = problem_result.data[0]["value"] if problem_result.data and problem_result.data[0]["value"] else None
-    if not problem_id:
+    if not result.data or not result.data[0].get("value"):
+        return {}
+
+    try:
+        return json.loads(result.data[0]["value"])
+    except json.JSONDecodeError:
+        return {}
+
+def get_yesterday_miss():
+    """Use the most recent missed flaw from yesterday, if any."""
+    yesterday = (datetime.now(IST).date() - timedelta(days=1)).isoformat()
+    error_cat = _get_day_state().get(yesterday, {}).get("most_recent_missed_error_category", "")
+    if not error_cat:
         return None
-
-    log = supabase.table("daily_log")\
-        .select("caught, problem_id, qa_flaw_deck(error_category)")\
-        .eq("problem_id", problem_id)\
-        .execute()
-
-    if not log.data or log.data[0]["caught"] is not False:
-        return None  # Not missed, or not yet resolved
-
-    error_cat = log.data[0].get("qa_flaw_deck", {}).get("error_category", "")
     sprint_cat = CATEGORY_MAP.get(error_cat)
     if sprint_cat:
         print(f"Yesterday's miss: {error_cat} → sprint category: {sprint_cat}")

@@ -13,7 +13,7 @@ chat_id = os.environ["TELEGRAM_CHAT_ID"].strip()
 async def graveyard_nudge():
     result = supabase.table("qa_flaw_deck")\
         .select("*")\
-        .eq("status", "missed")\
+        .or_("status.eq.missed,status.eq.delivered")\
         .order("delivered_at")\
         .limit(1)\
         .execute()
@@ -22,10 +22,12 @@ async def graveyard_nudge():
         return  # Silent — no nudge if graveyard is empty
 
     problem = result.data[0]
+    status = problem.get("status")
+    intro = "You missed this one before." if status == "missed" else "You left this one unresolved."
 
     message = (
         f"⚰️ *GRAVEYARD*\n\n"
-        f"You missed this one before.\n\n"
+        f"{intro}\n\n"
         f"*Problem:* {problem['original_problem']}\n\n"
         f"Don't solve it. Just recall the trap mentally."
     )

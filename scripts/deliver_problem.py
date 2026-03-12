@@ -1,239 +1,121 @@
-import os
-import json
+import argparse
 import asyncio
-from supabase import create_client
-from telegram import Bot
-from google import genai
+import json
+import os
+from datetime import datetime
+from zoneinfo import ZoneInfo
+
 from dotenv import load_dotenv
+from supabase import create_client
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
 
 load_dotenv()
+
+IST = ZoneInfo("Asia/Kolkata")
 
 supabase = create_client(os.environ["SUPABASE_URL"].strip(), os.environ["SUPABASE_KEY"].strip())
 bot = Bot(token=os.environ["TELEGRAM_TOKEN"].strip())
 chat_id = os.environ["TELEGRAM_CHAT_ID"].strip()
 
-# Optional: only needed if >10-step problems exist
-_genai_client = None
-def _get_genai():
-    global _genai_client
-    if _genai_client is None:
-        api_key = os.environ.get("GEMINI_API_KEY")
-        if not api_key:
-            return None
-        _genai_client = genai.Client(api_key=api_key)
-    return _genai_client
+FLAW_BUTTON_KEY = "flaw_persistent_button_v1"
+FLAW_SESSION_KEY = "flaw_session_v1"
 
-def _try_condense(steps, flaw_step_number):
-    """Attempt to condense >10 steps to ≤10. Returns dict or None on failure."""
-    client = _get_genai()
-    if not client:
-        print("  GEMINI_API_KEY not set. Cannot auto-condense.")
+
+def iso_now() -> str:
+    return datetime.now(IST).isoformat()
+
+
+def get_setting(key: str) -> str | None:
+    result = supabase.table("settings").select("value").eq("key", key).execute()
+    if not result.data:
         return None
+    return result.data[0].get("value")
 
-    import time
-    prompt = f"""You have a math solution with {len(steps)} numbered steps.
-The flaw is in step {flaw_step_number}.
-Condense this into EXACTLY 10 steps or fewer by merging trivially related consecutive steps.
-CRITICAL: The flawed step must remain identifiable — do NOT merge it with a correct step.
 
-Current steps:
-{json.dumps(steps, indent=2)}
-
-Return ONLY a JSON object with:
-- "condensed_steps": array of max 10 steps
-- "new_flaw_step_number": the 1-based index of the flawed step in the condensed version
-
-Return only valid JSON."""
-
-    for attempt in range(3):
-        try:
-            response = client.models.generate_content(model="gemini-3-flash-preview", contents=prompt)
-            text = response.text.strip()
-            if text.startswith("```"):
-                text = text.split("\n", 1)[1]
-                text = text.rsplit("```", 1)[0]
-            result = json.loads(text)
-            if len(result.get("condensed_steps", [])) <= 10:
-                return result
-            return None  # LLM still returned >10
-        except Exception as e:
-            if "429" in str(e) or "503" in str(e):
-                wait = 2 ** attempt * 10
-                print(f"    Rate limited, waiting {wait}s...")
-                time.sleep(wait)
-            else:
-                print(f"  Condense error: {e}")
-                return None
-    return None
-
-async def deliver():
-    # Fetch one unseen problem
-    result = supabase.table("qa_flaw_deck")\
-        .select("*")\
-        .eq("status", "unseen")\
-        .order("source_file")\
-        .limit(1)\
-        .execute()
-
-    # Fallback: if bank is exhausted, re-deliver oldest caught problem as revision
-    is_revision = False
-    if not result.data:
-        result = supabase.table("qa_flaw_deck")\
-            .select("*")\
-            .eq("status", "caught")\
-            .order("delivered_at")\
-            .limit(1)\
-            .execute()
-        is_revision = True
-
-    if not result.data:
-        await bot.send_message(
-            chat_id=chat_id,
-            text="⚠️ Problem bank is empty. Transcribe a new class and run process_transcript.py."
-        )
-        return
-
-    problem = result.data[0]
-    steps = problem["solution_steps"]
-
-    # Safety: Telegram polls max 10 options — auto-condense if needed
-    if len(steps) > 10:
-        print(f"Problem {problem['id'][:8]}... has {len(steps)} steps (max 10). Attempting auto-condense...")
-        condensed = _try_condense(steps, problem["flawed_step_number"])
-        if condensed:
-            steps = condensed["condensed_steps"]
-            problem["flawed_step_number"] = condensed["new_flaw_step_number"]
-            # Persist the condensed version so we don't re-condense next time
-            supabase.table("qa_flaw_deck").update({
-                "solution_steps": steps,
-                "flawed_step_number": problem["flawed_step_number"]
-            }).eq("id", problem["id"]).execute()
-            print(f"  Auto-condensed to {len(steps)} steps.")
-        else:
-            # Condensing failed — skip this problem
-            print(f"  Auto-condense failed. Skipping.")
-            supabase.table("qa_flaw_deck")\
-                .update({"status": "skip_overlimit"})\
-                .eq("id", problem["id"])\
-                .execute()
-            # Retry with next problem
-            result = supabase.table("qa_flaw_deck")\
-                .select("*")\
-                .eq("status", "unseen")\
-                .order("source_file")\
-                .limit(1)\
-                .execute()
-            if not result.data:
-                await bot.send_message(chat_id=chat_id, text="⚠️ No deliverable problems. Run process_transcript.py.")
-                return
-            problem = result.data[0]
-            steps = problem["solution_steps"]
-
-    # Header: revision round or normal
-    if is_revision:
-        header = "📚 *REVISION ROUND*\n\nYou caught this before. Still remember why the flaw was where it was?\n\n"
-    else:
-        header = "🔍 *SPOT THE FLAW — 12 PM*\n\n"
-
-    # ── Telegram API Limits (from telegram.constants) ──
-    # Message text: ≤ 4096 chars
-    # Poll question: ≤ 300 chars
-    # Poll option:   ≤ 100 chars each
-    # Poll options:  ≤ 10 total
-    # Explanation:   ≤ 200 chars, max 2 newlines
-    # ──────────────────────────────────────────────────
-
-    # Build the message with full steps + full explanation (no detail lost)
-    formatted_steps = "\n".join([f"Step {i+1}: {s}" for i, s in enumerate(steps)])
-    full_explanation = f"Trap: {problem['error_category']}\n{problem['explanation']}"
-    full_message = (
-        f"{header}*Problem:*\n{problem['original_problem']}\n\n"
-        f"*Steps:*\n{formatted_steps}\n\n"
-        f"*Explanation:*\n{full_explanation}"
-    )
-
-    # Send message (split if > 4096 chars)
+def get_json_setting(key: str, default):
+    raw = get_setting(key)
+    if not raw:
+        return default
     try:
-        if len(full_message) <= 4096:
-            await bot.send_message(chat_id=chat_id, text=full_message, parse_mode="Markdown")
-        else:
-            msg1 = f"{header}*Problem:*\n{problem['original_problem']}"
-            await bot.send_message(chat_id=chat_id, text=msg1[:4096], parse_mode="Markdown")
-            msg2 = f"*Steps:*\n{formatted_steps}\n\n*Explanation:*\n{full_explanation}"
-            while msg2:
-                await bot.send_message(chat_id=chat_id, text=msg2[:4096], parse_mode="Markdown")
-                msg2 = msg2[4096:]
-    except Exception as e:
-        print(f"  ⚠️ Markdown send failed ({e}), retrying as plain text...")
-        # Strip Markdown formatting and resend as plain text
-        plain_header = header.replace("*", "")
-        plain_message = (
-            f"{plain_header}Problem:\n{problem['original_problem']}\n\n"
-            f"Steps:\n{formatted_steps}\n\n"
-            f"Explanation:\n{full_explanation}"
-        )
-        if len(plain_message) <= 4096:
-            await bot.send_message(chat_id=chat_id, text=plain_message)
-        else:
-            msg1 = f"{plain_header}Problem:\n{problem['original_problem']}"
-            await bot.send_message(chat_id=chat_id, text=msg1[:4096])
-            msg2 = f"Steps:\n{formatted_steps}\n\nExplanation:\n{full_explanation}"
-            while msg2:
-                await bot.send_message(chat_id=chat_id, text=msg2[:4096])
-                msg2 = msg2[4096:]
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return default
 
-    # Build poll options: "Step X: [preview...]" — each guaranteed ≤ 100 chars
-    poll_options = []
-    for i, s in enumerate(steps):
-        prefix = f"Step {i+1}: "
-        max_preview = 100 - len(prefix) - 3  # -3 for "..."
-        if len(prefix) + len(s) > 100:
-            poll_options.append(f"{prefix}{s[:max_preview]}...")
-        else:
-            poll_options.append(f"{prefix}{s}")
 
-    # Build explanation: must be ≤ 200 chars with max 2 newlines
-    poll_explanation = f"Trap: {problem['error_category']}"
-    if len(poll_explanation) < 197:
-        remaining = 200 - len(poll_explanation) - 3  # -3 for "\n\n" prefix + safety
-        expl_text = problem['explanation'][:remaining]
-        poll_explanation = f"{poll_explanation}\n\n{expl_text}"
-    # Final safety cap
-    poll_explanation = poll_explanation[:200]
+def upsert_setting(key: str, value: str) -> None:
+    supabase.table("settings").upsert({"key": key, "value": value}).execute()
 
-    await bot.send_poll(
-        chat_id=chat_id,
-        question="Which step contains the logical flaw?"[:300],
-        options=poll_options,
-        type="quiz",
-        correct_option_id=problem["flawed_step_number"] - 1,
-        explanation=poll_explanation,
-        is_anonymous=False
+
+def upsert_json_setting(key: str, value) -> None:
+    upsert_setting(key, json.dumps(value, separators=(",", ":")))
+
+
+def clear_active_session() -> None:
+    upsert_json_setting(FLAW_SESSION_KEY, None)
+
+
+def start_keyboard():
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton("▶️ Start Spot the Flaw", callback_data="flw|open"),
+    ]])
+
+
+async def post_button() -> None:
+    existing = get_json_setting(FLAW_BUTTON_KEY, None)
+    if existing and existing.get("message_id"):
+        try:
+            await bot.delete_message(chat_id=existing.get("chat_id", chat_id), message_id=existing["message_id"])
+        except Exception as exc:
+            print(f"[WARN] Could not delete old Spot the Flaw button: {exc}")
+
+    clear_active_session()
+
+    text = (
+        "🔍 *SPOT THE FLAW*\n\n"
+        "Tap below to choose how many questions you want today."
     )
+    message = await bot.send_message(
+        chat_id=chat_id,
+        text=text,
+        parse_mode="Markdown",
+        reply_markup=start_keyboard(),
+    )
+    upsert_json_setting(FLAW_BUTTON_KEY, {
+        "message_id": message.message_id,
+        "chat_id": str(message.chat.id),
+        "posted_at": iso_now(),
+    })
+    print(f"Spot the Flaw button posted: {message.message_id}")
 
-    # Update settings
-    supabase.table("settings")\
-        .update({"value": problem["trap_axiom"]})\
-        .eq("key", "todays_axiom")\
-        .execute()
 
-    supabase.table("settings")\
-        .update({"value": problem["id"]})\
-        .eq("key", "todays_problem_id")\
-        .execute()
+async def cleanup_button() -> None:
+    existing = get_json_setting(FLAW_BUTTON_KEY, None)
+    if existing and existing.get("message_id"):
+        try:
+            await bot.delete_message(chat_id=existing.get("chat_id", chat_id), message_id=existing["message_id"])
+        except Exception as exc:
+            print(f"[WARN] Could not delete Spot the Flaw button: {exc}")
+    upsert_json_setting(FLAW_BUTTON_KEY, None)
+    clear_active_session()
+    print("Spot the Flaw button cleaned up.")
 
-    # Mark as delivered (revision stays 'caught' but gets re-delivered)
-    if not is_revision:
-        supabase.table("qa_flaw_deck")\
-            .update({"delivered_at": "now()", "status": "delivered"})\
-            .eq("id", problem["id"])\
-            .execute()
 
-    supabase.table("daily_log").insert({
-        "problem_id": problem["id"],
-        "is_revision": is_revision
-    }).execute()
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Spot the Flaw persistent button manager.")
+    sub = parser.add_subparsers(dest="command", required=True)
+    sub.add_parser("post")
+    sub.add_parser("cleanup")
+    return parser.parse_args()
 
-    print(f"{'Revision' if is_revision else 'New'} problem delivered: {problem['id'][:8]}...")
 
-asyncio.run(deliver())
+async def main() -> None:
+    args = parse_args()
+    if args.command == "post":
+        await post_button()
+    elif args.command == "cleanup":
+        await cleanup_button()
+    else:
+        raise RuntimeError(f"Unsupported command: {args.command}")
+
+
+asyncio.run(main())

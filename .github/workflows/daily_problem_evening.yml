@@ -1,8 +1,8 @@
-name: 8PM Problem Delivery
+name: Spot The Flaw Cleanup (9:00 PM IST)
 
 on:
   schedule:
-    - cron: '30 14 * * *'  # 8:00 PM IST
+    - cron: '30 15 * * *'  # 9:00 PM IST
   workflow_dispatch:
 
 jobs:
@@ -14,10 +14,9 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install -r requirements.txt
-      - run: python scripts/deliver_problem.py
+      - run: python scripts/deliver_problem.py cleanup
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}

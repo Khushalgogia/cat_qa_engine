@@ -1,15 +1,39 @@
 import os
 import json
 import asyncio
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from supabase import create_client
 from telegram import Bot
 from dotenv import load_dotenv
 
 load_dotenv()
 
+IST = ZoneInfo("Asia/Kolkata")
+FLAW_DAY_STATE_KEY = "flaw_day_state_v1"
+
 supabase = create_client(os.environ["SUPABASE_URL"].strip(), os.environ["SUPABASE_KEY"].strip())
 bot = Bot(token=os.environ["TELEGRAM_TOKEN"].strip())
 chat_id = os.environ["TELEGRAM_CHAT_ID"].strip()
+
+
+def _today_key():
+    return datetime.now(IST).date().isoformat()
+
+
+def _get_day_state():
+    result = supabase.table("settings")\
+        .select("value")\
+        .eq("key", FLAW_DAY_STATE_KEY)\
+        .execute()
+
+    if not result.data or not result.data[0].get("value"):
+        return {}
+
+    try:
+        return json.loads(result.data[0]["value"])
+    except json.JSONDecodeError:
+        return {}
 
 def _format_axiom(axiom_raw, framing):
     """Format the axiom as a Cognitive Anchor message.
@@ -47,36 +71,18 @@ def _format_axiom(axiom_raw, framing):
         return msg
 
 async def deliver_axiom():
-    # Get today's axiom
-    axiom_result = supabase.table("settings")\
-        .select("value")\
-        .eq("key", "todays_axiom")\
-        .execute()
-
-    axiom = axiom_result.data[0]["value"] if axiom_result.data else None
-    if not axiom:
+    state = _get_day_state().get(_today_key(), {})
+    problem_id = state.get("most_recent_missed_problem_id") or state.get("most_recent_answered_problem_id")
+    axiom = state.get("most_recent_missed_axiom") or state.get("most_recent_answered_axiom")
+    if not axiom or not problem_id:
         return
 
-    # Get today's problem ID and check if user caught or missed
-    problem_result = supabase.table("settings")\
-        .select("value")\
-        .eq("key", "todays_problem_id")\
-        .execute()
-
-    problem_id = problem_result.data[0]["value"] if problem_result.data else None
     framing = ""
 
-    if problem_id:
-        log = supabase.table("daily_log")\
-            .select("caught")\
-            .eq("problem_id", problem_id)\
-            .execute()
-
-        if log.data and log.data[0]["caught"] is not None:
-            if log.data[0]["caught"]:
-                framing = "You spotted this trap today. Lock it in.\n\n"
-            else:
-                framing = "This one caught you today. Make sure it never does again.\n\n"
+    if state.get("most_recent_missed_problem_id"):
+        framing = "This one caught you today. Make sure it never does again.\n\n"
+    elif state.get("most_recent_answered_problem_id"):
+        framing = "You spotted this trap today. Lock it in.\n\n"
 
     text = _format_axiom(axiom, framing)
 

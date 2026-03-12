@@ -1,8 +1,8 @@
-name: 2PM Problem Delivery
+name: Spot The Flaw Button (9:00 AM IST)
 
 on:
   schedule:
-    - cron: '0 9 * * *'    # 2:30 PM IST
+    - cron: '30 3 * * *'    # 9:00 AM IST
   workflow_dispatch:
 
 jobs:
@@ -14,10 +14,9 @@ jobs:
         with:
           python-version: '3.11'
       - run: pip install -r requirements.txt
-      - run: python scripts/deliver_problem.py
+      - run: python scripts/deliver_problem.py post
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
